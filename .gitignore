@@ -1,0 +1,42 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+dist/
+build/
+*.egg-info/
+
+# Entorno y secretos
+.env
+.env.*
+!.env.example
+
+# Node
+node_modules/
+frontend/dist/
+frontend/coverage/
+npm-debug.log*
+
+# Base de datos y exportaciones
+*.sql
+*.dump
+*.backup
+*.bak
+exports/
+legacy_exports/
+
+# Editores / SO
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini
+
+# Playwright
+playwright-report/
+test-results/
+blob-report/

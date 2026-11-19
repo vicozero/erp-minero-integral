@@ -1,7 +1,12 @@
 import type { ReactNode } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from './auth/AuthContext';
+import { can, PERM } from './auth/permissions';
 import { Layout } from './components/Layout';
+import { Users } from './features/admin/Users';
+import { Audit } from './features/audit/Audit';
+import { AccessDenied } from './features/auth/AccessDenied';
+import { ChangePassword } from './features/auth/ChangePassword';
 import { Login } from './features/auth/Login';
 import { Approvals } from './features/approvals/Approvals';
 import { Dashboard } from './features/dashboard/Dashboard';
@@ -11,8 +16,14 @@ import { Purchases } from './features/purchases/Purchases';
 import { Requisitions } from './features/requisitions/Requisitions';
 
 function RequireAuth({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  if (loading) return <div className="boot-loading">Verificando sesión…</div>;
   return user ? <>{children}</> : <Navigate to="/login" replace />;
+}
+
+function RequirePermission({ codes, children }: { codes: readonly string[]; children: ReactNode }) {
+  const { user } = useAuth();
+  return can(user, ...codes) ? <>{children}</> : <Navigate to="/acceso-denegado" replace />;
 }
 
 export default function App() {
@@ -29,11 +40,36 @@ export default function App() {
             }
           >
             <Route index element={<Dashboard />} />
-            <Route path="requisiciones" element={<Requisitions />} />
-            <Route path="autorizaciones" element={<Approvals />} />
-            <Route path="almacen" element={<Inventory />} />
-            <Route path="compras" element={<Purchases />} />
-            <Route path="historial" element={<History />} />
+            <Route
+              path="requisiciones"
+              element={<RequirePermission codes={PERM.VIEW_REQUISITIONS}><Requisitions /></RequirePermission>}
+            />
+            <Route
+              path="autorizaciones"
+              element={<RequirePermission codes={PERM.APPROVE_REQUISITIONS}><Approvals /></RequirePermission>}
+            />
+            <Route
+              path="almacen"
+              element={<RequirePermission codes={PERM.VIEW_INVENTORY}><Inventory /></RequirePermission>}
+            />
+            <Route
+              path="compras"
+              element={<RequirePermission codes={PERM.VIEW_PURCHASES}><Purchases /></RequirePermission>}
+            />
+            <Route
+              path="historial"
+              element={<RequirePermission codes={PERM.VIEW_HISTORY}><History /></RequirePermission>}
+            />
+            <Route
+              path="usuarios"
+              element={<RequirePermission codes={PERM.ADMIN_USERS}><Users /></RequirePermission>}
+            />
+            <Route
+              path="auditoria"
+              element={<RequirePermission codes={PERM.VIEW_AUDIT}><Audit /></RequirePermission>}
+            />
+            <Route path="cambiar-contraseña" element={<ChangePassword />} />
+            <Route path="acceso-denegado" element={<AccessDenied />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

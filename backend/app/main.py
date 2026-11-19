@@ -5,7 +5,7 @@ import uuid
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.v1.routers import audit, auth, catalogs, health, inventory, purchasing, requisitions
+from app.api.v1.routers import admin, audit, auth, catalogs, health, inventory, purchasing, requisitions
 from app.core.config import settings
 from app.core.context import request_id_var
 
@@ -38,7 +38,15 @@ async def request_context(request: Request, call_next):
 
 
 app.include_router(health.router)
-for modular_router in (auth.router, catalogs.router, requisitions.router, inventory.router, purchasing.router, audit.router):
+for modular_router in (
+    auth.router,
+    admin.router,
+    catalogs.router,
+    requisitions.router,
+    inventory.router,
+    purchasing.router,
+    audit.router,
+):
     app.include_router(modular_router, prefix=settings.API_V1_PREFIX)
 
 

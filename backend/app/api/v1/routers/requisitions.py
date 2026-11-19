@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.api.v1.deps import require_permission
 from app.db.session import get_db
 from app.modules.identity.models import AppUser
+from app.modules.identity.service import IdentityService
 from app.modules.requisitions.models import Requisition
 from app.modules.requisitions.schemas import (
     DecisionRequest,
@@ -26,6 +27,7 @@ def create(
     db: Session = Depends(get_db),
     actor: AppUser = Depends(require_permission("requisition.create")),
 ) -> dict:
+    IdentityService.assert_department_access(db, actor.id, payload.department_id)
     req = Service.create(db, actor.id, payload)
     db.commit()
     return Service.to_out(db, req)
@@ -34,9 +36,13 @@ def create(
 @router.get("", response_model=list[RequisitionOut])
 def list_all(
     db: Session = Depends(get_db),
-    _actor: AppUser = Depends(require_permission("requisition.view")),
+    actor: AppUser = Depends(require_permission("requisition.view")),
 ) -> list[dict]:
-    reqs = db.query(Requisition).order_by(Requisition.created_at.desc()).all()
+    stmt = db.query(Requisition)
+    if not IdentityService.is_admin(db, actor.id):
+        allowed = IdentityService.department_ids(db, actor.id)
+        stmt = stmt.filter(Requisition.department_id.in_(allowed))
+    reqs = stmt.order_by(Requisition.created_at.desc()).all()
     return [Service.to_out(db, req) for req in reqs]
 
 
@@ -44,11 +50,12 @@ def list_all(
 def get_one(
     requisition_id: uuid.UUID,
     db: Session = Depends(get_db),
-    _actor: AppUser = Depends(require_permission("requisition.view")),
+    actor: AppUser = Depends(require_permission("requisition.view")),
 ) -> dict:
     req = db.get(Requisition, requisition_id)
     if req is None:
         raise HTTPException(status_code=404, detail="Requisición inexistente.")
+    IdentityService.assert_department_access(db, actor.id, req.department_id)
     return Service.to_out(db, req)
 
 

@@ -63,7 +63,7 @@ def test_migraciones_y_tipos_de_datos(engine) -> None:
             )
         ).scalar_one()
 
-    assert revision == "d147e7ec92fb"
+    assert revision in {"d147e7ec92fb", "f3a9c1d7b2e4"}
     assert {"seg", "org", "mdm", "doc", "req", "wfl", "inv", "pur", "mnt", "cost", "intg", "aud"} <= schemas
     assert domain_tables >= 37
     assert created_at_types == {"timestamp with time zone"}

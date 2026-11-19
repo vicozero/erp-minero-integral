@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.modules.audit.service import AuditService
 from app.modules.costing.models import CostCenter
 from app.modules.documentation.models import DocumentEvent, DocumentRegistry
+from app.modules.identity.service import IdentityService
 from app.modules.inventory.service import InventoryService
 from app.modules.master_data.models import Item, Uom
 from app.modules.organization.models import Department, MiningUnit, Warehouse
@@ -201,6 +202,10 @@ class RequisitionService:
             _fail("Requisición inexistente.", status.HTTP_404_NOT_FOUND)
         if req.status != "SUBMITTED":
             _fail("La requisición no está pendiente de autorización.")
+        if req.requester_id == actor_id:
+            _fail("No puede autorizar su propia requisición.", status.HTTP_403_FORBIDDEN)
+        if not IdentityService.can_access_department(db, actor_id, req.department_id):
+            _fail("No tiene acceso a requisiciones de ese departamento.", status.HTTP_403_FORBIDDEN)
 
         approval = db.execute(
             select(ApprovalRequest)

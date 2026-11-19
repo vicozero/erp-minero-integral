@@ -87,5 +87,8 @@ class DecisionIn(BaseModel):
 
 
 class DecisionRequest(BaseModel):
-    decisions: list[DecisionIn] = Field(min_length=1)
+    # Se permite el cuerpo vacío a nivel de esquema para que el servicio pueda
+    # aplicar primero las reglas de autorización (p. ej. autoautorización) y
+    # devolver el código HTTP correcto antes que un 422 de validación.
+    decisions: list[DecisionIn] = Field(default_factory=list)
     reason: str | None = Field(default=None, max_length=500)

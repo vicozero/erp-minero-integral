@@ -58,7 +58,10 @@ class Requisition(AuditMixin, Base):
     rejection_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     closed_at: Mapped[datetime | None] = mapped_column(nullable=True)
 
-    lines: Mapped[list["RequisitionLine"]] = relationship(back_populates="requisition")
+    # Orden determinista por número de partida (evita depender del orden físico).
+    lines: Mapped[list["RequisitionLine"]] = relationship(
+        back_populates="requisition", order_by="RequisitionLine.line_no"
+    )
 
 
 class RequisitionLine(AuditMixin, Base):

@@ -1,8 +1,67 @@
 export interface User {
   id: string;
   username: string;
+  email: string;
   full_name: string;
+  status: string;
   roles: string[];
+  permissions: string[];
+  department_ids: string[];
+  must_change_password: boolean;
+}
+
+export interface LoginResponse {
+  access_token: string;
+  token_type: string;
+  csrf_token: string;
+  expires_at: string;
+  must_change_password: boolean;
+  user: User;
+}
+
+export interface Session {
+  id: string;
+  user_id: string;
+  created_at: string;
+  expires_at: string;
+  last_seen_at: string | null;
+  revoked_at: string | null;
+}
+
+export interface AdminUser extends User {
+  failed_login_attempts: number;
+  locked_until: string | null;
+  last_login_at: string | null;
+  created_at: string;
+}
+
+export interface UserCreated extends AdminUser {
+  temporary_password: string | null;
+}
+
+export interface Role {
+  code: string;
+  name: string;
+  description: string | null;
+}
+
+export interface Permission {
+  code: string;
+  description: string | null;
+}
+
+export interface Department {
+  id: string;
+  code: string;
+  name: string | null;
+  mining_unit_id: string | null;
+}
+
+export interface PasswordResetOut {
+  username: string;
+  temporary_password: string;
+  must_change_password: boolean;
+  detail: string;
 }
 
 export interface CatalogItem {
@@ -142,4 +201,20 @@ export interface RequisitionPayload {
     requested_qty: string;
     notes?: string | null;
   }>;
+}
+
+export interface UserCreatePayload {
+  username: string;
+  email: string;
+  full_name: string;
+  password?: string;
+  roles: string[];
+  department_ids: string[];
+}
+
+export interface UserUpdatePayload {
+  email?: string;
+  full_name?: string;
+  status?: 'ACTIVE' | 'INACTIVE';
+  department_ids?: string[];
 }

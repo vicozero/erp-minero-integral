@@ -26,6 +26,12 @@ class Settings(BaseSettings):
     TIMEZONE: str = "America/Mexico_City"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
 
+    # Cookies de sesión del portal web. Secure debe activarse únicamente cuando
+    # el ERP se sirva por HTTPS (intranet con TLS).
+    SESSION_COOKIE_SECURE: bool = False
+    SESSION_COOKIE_SAMESITE: str = "lax"
+    SESSION_COOKIE_DOMAIN: str | None = None
+
     DATABASE_URL: str = Field(repr=False)
     SECRET_KEY: str = Field(repr=False)
     DEMO_PASSWORD: str | None = Field(default=None, repr=False)
@@ -38,6 +44,14 @@ class Settings(BaseSettings):
         if "@127.0.0.1" not in value and "@localhost" not in value:
             raise ValueError("DATABASE_URL debe apuntar a localhost (127.0.0.1)")
         return value
+
+    @field_validator("SESSION_COOKIE_SAMESITE")
+    @classmethod
+    def validate_samesite(cls, value: str) -> str:
+        normalized = value.lower()
+        if normalized not in {"lax", "strict", "none"}:
+            raise ValueError("SESSION_COOKIE_SAMESITE debe ser lax, strict o none")
+        return normalized
 
     @field_validator("SECRET_KEY")
     @classmethod

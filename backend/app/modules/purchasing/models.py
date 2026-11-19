@@ -38,7 +38,11 @@ class PurchaseOrder(AuditMixin, Base):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     approved_at: Mapped[datetime | None] = mapped_column(nullable=True)
 
-    lines: Mapped[list["PurchaseOrderLine"]] = relationship(back_populates="purchase_order")
+    # Orden determinista: sin ORDER BY PostgreSQL puede devolver las partidas
+    # en orden físico distinto entre la creación y consultas posteriores.
+    lines: Mapped[list["PurchaseOrderLine"]] = relationship(
+        back_populates="purchase_order", order_by="PurchaseOrderLine.line_no"
+    )
 
 
 class PurchaseOrderLine(AuditMixin, Base):

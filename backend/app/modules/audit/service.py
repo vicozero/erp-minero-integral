@@ -5,10 +5,12 @@ import json
 import uuid
 from decimal import Decimal
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.context import current_request_id
 from app.modules.audit.models import AuditLog
+from app.modules.identity.models import AppUser
 
 
 def _json_safe(value: object | None) -> dict | None:
@@ -47,6 +49,10 @@ class AuditService:
         ip_hash: str | None = None,
         request_id: str | None = None,
     ) -> AuditLog:
+        if actor_username is None and actor_id is not None:
+            actor_username = db.execute(
+                select(AppUser.username).where(AppUser.id == actor_id)
+            ).scalar_one_or_none()
         entry = AuditLog(
             action=action,
             entity_type=entity_type,

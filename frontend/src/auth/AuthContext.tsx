@@ -1,35 +1,87 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
-import { api, setToken } from '../api/client';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
+import { api, setCsrfToken } from '../api/client';
 import type { User } from '../api/types';
 
 interface AuthState {
   user: User | null;
+  loading: boolean;
   login: (username: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
+  refresh: () => Promise<void>;
+  changePassword: (current: string, next: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+export function AuthProvider({
+  children,
+  initialUser,
+}: {
+  children: ReactNode;
+  /** Solo para pruebas: evita el arranque automático de sesión. */
+  initialUser?: User | null;
+}) {
+  const [user, setUser] = useState<User | null>(initialUser ?? null);
+  const [loading, setLoading] = useState(initialUser === undefined);
+
+  useEffect(() => {
+    if (initialUser !== undefined) return;
+    let active = true;
+    api.me()
+      .then((current) => {
+        if (active) setUser(current);
+      })
+      .catch(() => {
+        if (active) setUser(null);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [initialUser]);
 
   const login = useCallback(async (username: string, password: string) => {
     const response = await api.login(username, password);
-    setToken(response.access_token);
+    setCsrfToken(response.csrf_token);
+    setUser(response.user);
+    setLoading(false);
+  }, []);
+
+  const logout = useCallback(async () => {
     try {
-      setUser(await api.me());
-    } catch (error) {
-      setToken(null);
-      throw error;
+      await api.logout();
+    } catch {
+      // Si la sesión ya caducó, se limpia igualmente el estado local.
+    } finally {
+      setCsrfToken(null);
+      setUser(null);
     }
   }, []);
 
-  const logout = useCallback(() => {
-    setToken(null);
-    setUser(null);
+  const refresh = useCallback(async () => {
+    setUser(await api.me());
   }, []);
 
-  const value = useMemo(() => ({ user, login, logout }), [user, login, logout]);
+  const changePassword = useCallback(async (current: string, next: string) => {
+    const response = await api.changePassword(current, next);
+    setCsrfToken(response.csrf_token);
+    setUser(response.user);
+  }, []);
+
+  const value = useMemo(
+    () => ({ user, loading, login, logout, refresh, changePassword }),
+    [user, loading, login, logout, refresh, changePassword],
+  );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

@@ -1,25 +1,43 @@
 import type {
+  AdminUser,
   AuditEntry,
   Availability,
   Catalogs,
+  Department,
   HistoryEvent,
+  LoginResponse,
+  PasswordResetOut,
+  Permission,
   PurchaseOrder,
   Requisition,
   RequisitionPayload,
+  Role,
+  Session,
   StockMovement,
   User,
+  UserCreatePayload,
+  UserCreated,
+  UserUpdatePayload,
 } from './types';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8000';
+const CSRF_COOKIE = 'erp_csrf';
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
-let token: string | null = null;
+// El token CSRF se mantiene solo en memoria; la cookie del navegador se usa
+// como respaldo tras recargar la página. Nunca se guarda el token de sesión:
+// viaja únicamente en una cookie HttpOnly gestionada por el backend.
+let csrfToken: string | null = null;
 
-export function setToken(value: string | null): void {
-  token = value;
+export function setCsrfToken(value: string | null): void {
+  csrfToken = value;
 }
 
-export function getToken(): string | null {
-  return token;
+export function getCsrfToken(): string | null {
+  if (csrfToken) return csrfToken;
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie.match(new RegExp(`(?:^|;\\s*)${CSRF_COOKIE}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : null;
 }
 
 export class ApiError extends Error {
@@ -30,12 +48,21 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const method = (init.method ?? 'GET').toUpperCase();
   const headers = new Headers(init.headers);
-  headers.set('Content-Type', 'application/json');
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`);
+  if (init.body !== undefined) {
+    headers.set('Content-Type', 'application/json');
   }
-  const response = await fetch(`${API_URL}${path}`, { ...init, headers });
+  if (!SAFE_METHODS.has(method)) {
+    const csrf = getCsrfToken();
+    if (csrf) headers.set('X-CSRF-Token', csrf);
+  }
+
+  const response = await fetch(`${API_URL}${path}`, {
+    ...init,
+    headers,
+    credentials: 'include',
+  });
   if (!response.ok) {
     let detail = `Error ${response.status}`;
     try {
@@ -53,12 +80,58 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
+  // --- Sesión ---------------------------------------------------------
   login: (username: string, password: string) =>
-    request<{ access_token: string }>('/api/v1/auth/login', {
+    request<LoginResponse>('/api/v1/auth/login', {
       method: 'POST',
       body: JSON.stringify({ username, password }),
     }),
+  logout: () => request<void>('/api/v1/auth/logout', { method: 'POST' }),
   me: () => request<User>('/api/v1/auth/me'),
+  changePassword: (current_password: string, new_password: string) =>
+    request<LoginResponse>('/api/v1/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ current_password, new_password }),
+    }),
+  mySessions: () => request<Session[]>('/api/v1/auth/sessions'),
+  revokeSession: (id: string) => request<void>(`/api/v1/auth/sessions/${id}/revoke`, { method: 'POST' }),
+
+  // --- Administración -------------------------------------------------
+  users: () => request<AdminUser[]>('/api/v1/admin/users'),
+  createUser: (payload: UserCreatePayload) =>
+    request<UserCreated>('/api/v1/admin/users', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  updateUser: (id: string, payload: UserUpdatePayload) =>
+    request<AdminUser>(`/api/v1/admin/users/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+  deactivateUser: (id: string) => request<AdminUser>(`/api/v1/admin/users/${id}`, { method: 'DELETE' }),
+  assignRole: (id: string, role_code: string, scope_type = 'GLOBAL') =>
+    request<AdminUser>(`/api/v1/admin/users/${id}/roles`, {
+      method: 'POST',
+      body: JSON.stringify({ role_code, scope_type }),
+    }),
+  removeRole: (id: string, role_code: string) =>
+    request<AdminUser>(`/api/v1/admin/users/${id}/roles/${role_code}`, { method: 'DELETE' }),
+  setDepartments: (id: string, department_ids: string[]) =>
+    request<AdminUser>(`/api/v1/admin/users/${id}/departments`, {
+      method: 'PUT',
+      body: JSON.stringify(department_ids),
+    }),
+  resetPassword: (id: string, reason?: string) =>
+    request<PasswordResetOut>(`/api/v1/admin/users/${id}/reset-password`, {
+      method: 'POST',
+      body: JSON.stringify({ reason: reason ?? null }),
+    }),
+  roles: () => request<Role[]>('/api/v1/admin/roles'),
+  permissions: () => request<Permission[]>('/api/v1/admin/permissions'),
+  adminDepartments: () => request<Department[]>('/api/v1/admin/departments'),
+  sessions: () => request<Session[]>('/api/v1/admin/sessions'),
+
+  // --- Operación ------------------------------------------------------
   catalogs: () => request<Catalogs>('/api/v1/catalogs'),
   requisitions: () => request<Requisition[]>('/api/v1/requisitions'),
   createRequisition: (payload: RequisitionPayload) =>
@@ -131,5 +204,6 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
-  audit: () => request<AuditEntry[]>('/api/v1/audit?limit=100'),
+  audit: (limit = 100, action?: string) =>
+    request<AuditEntry[]>(`/api/v1/audit?limit=${limit}${action ? `&action=${encodeURIComponent(action)}` : ''}`),
 };

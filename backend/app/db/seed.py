@@ -13,12 +13,12 @@ from app.db.session import SessionLocal
 from app.modules.audit.service import AuditService
 from app.modules.costing.models import CostCenter
 from app.modules.documentation.models import DocumentNumbering, DocumentType
-from app.modules.identity.models import AppUser, Permission, Role, RolePermission, UserRole
+from app.modules.identity.models import AppUser, Permission, Role, RolePermission, UserDepartment, UserRole
 from app.modules.inventory.models import NULL_UUID, StockBalance, StockMovement
 from app.modules.maintenance.models import Equipment
 from app.modules.master_data.models import Item, Supplier, Uom
 from app.modules.organization.models import Company, Department, MiningUnit, Warehouse
-from app.shared.constants import DOCUMENT_TYPES, ROLE_PERMISSIONS
+from app.shared.constants import DOCUMENT_TYPES, ROLE_LABELS, ROLE_PERMISSIONS
 from app.shared.events import emit
 from app.shared.numbering import next_document_number
 
@@ -31,6 +31,22 @@ DEMO_ITEMS = (
     ("DEMO-ACEITE", "Aceite hidráulico demo", "LT", Decimal("80.000000"), Decimal("45.0000")),
     ("DEMO-FILTRO", "Filtro de aire demo", "UND", Decimal("40.000000"), Decimal("120.0000")),
 )
+
+
+def _assign_department(db: Session, user_id: uuid.UUID, department_id: uuid.UUID) -> None:
+    existing = db.execute(
+        select(UserDepartment).where(
+            UserDepartment.user_id == user_id,
+            UserDepartment.department_id == department_id,
+        )
+    ).scalar_one_or_none()
+    if existing is None:
+        db.add(UserDepartment(user_id=user_id, department_id=department_id))
+        db.flush()
+    elif existing.revoked_at is not None:
+        existing.revoked_at = None
+        existing.revoked_by = None
+        db.flush()
 
 
 def _get_or_create_role(db: Session, code: str, name: str) -> Role:
@@ -81,7 +97,10 @@ def seed_demo_data(db: Session) -> None:
     password_hash = hash_password(settings.DEMO_PASSWORD)
     now = datetime.now(timezone.utc)
 
-    roles = {code: _get_or_create_role(db, code, code.title()) for code in ROLE_PERMISSIONS}
+    roles = {
+        code: _get_or_create_role(db, code, ROLE_LABELS.get(code, code.title()))
+        for code in ROLE_PERMISSIONS
+    }
     permission_codes: set[str] = set()
     for codes in ROLE_PERMISSIONS.values():
         permission_codes.update(codes)
@@ -96,7 +115,7 @@ def seed_demo_data(db: Session) -> None:
 
     for role_code, codes in ROLE_PERMISSIONS.items():
         role = roles[role_code]
-        for code in codes:
+        for code in dict.fromkeys(codes):
             exists = db.execute(
                 select(RolePermission).where(
                     RolePermission.role_id == role.id,
@@ -121,6 +140,18 @@ def seed_demo_data(db: Session) -> None:
         "demo.comprador": _get_or_create_user(
             db, "demo.comprador", "compras.demo@example.invalid", "Comprador Demo", password_hash
         ),
+        "demo.jefe": _get_or_create_user(
+            db, "demo.jefe", "jefe.demo@example.invalid", "Jefe de departamento Demo", password_hash
+        ),
+        "demo.gerencia": _get_or_create_user(
+            db, "demo.gerencia", "gerencia.demo@example.invalid", "Gerencia Demo", password_hash
+        ),
+        "demo.auditor": _get_or_create_user(
+            db, "demo.auditor", "auditor.demo@example.invalid", "Auditor Demo", password_hash
+        ),
+        "demo.temporal": _get_or_create_user(
+            db, "demo.temporal", "temporal.demo@example.invalid", "Usuario con contraseña temporal", password_hash
+        ),
     }
     role_by_user = {
         "demo.admin": "ADMIN",
@@ -128,9 +159,18 @@ def seed_demo_data(db: Session) -> None:
         "demo.aprobador": "APROBADOR",
         "demo.almacenista": "ALMACENISTA",
         "demo.comprador": "COMPRADOR",
+        "demo.jefe": "JEFE_DEPARTAMENTO",
+        "demo.gerencia": "GERENCIA",
+        "demo.auditor": "AUDITOR",
+        "demo.temporal": "SOLICITANTE",
     }
     for username, role_code in role_by_user.items():
         _ensure_user_role(db, users[username].id, roles[role_code].id)
+
+    temporal = users["demo.temporal"]
+    if not temporal.must_change_password:
+        temporal.must_change_password = True
+        db.flush()
 
     company = db.execute(select(Company).where(Company.code == DEMO_COMPANY)).scalar_one_or_none()
     if company is None:
@@ -146,21 +186,54 @@ def seed_demo_data(db: Session) -> None:
         db.add(unit)
         db.flush()
 
+    other_unit = db.execute(
+        select(MiningUnit).where(MiningUnit.company_id == company.id, MiningUnit.code == "LAG_OTRA_DEMO")
+    ).scalar_one_or_none()
+    if other_unit is None:
+        other_unit = MiningUnit(
+            company_id=company.id,
+            code="LAG_OTRA_DEMO",
+            name="Unidad minera ficticia adicional (pruebas de alcance)",
+        )
+        db.add(other_unit)
+        db.flush()
+
     departments: dict[str, Department] = {}
-    for code, name in (("DEMO-MINA", "Mina Demo"), ("DEMO-MANT", "Mantenimiento Demo")):
+    for code, name, owner in (
+        ("DEMO-MINA", "Mina Demo", unit),
+        ("DEMO-MANT", "Mantenimiento Demo", unit),
+        ("DEMO-OTRA", "Departamento ajeno Demo", other_unit),
+    ):
         dept = db.execute(
             select(Department).where(Department.company_id == company.id, Department.code == code)
         ).scalar_one_or_none()
         if dept is None:
             dept = Department(
                 company_id=company.id,
-                mining_unit_id=unit.id,
+                mining_unit_id=owner.id,
                 code=code,
                 name=name,
             )
             db.add(dept)
             db.flush()
         departments[code] = dept
+
+    # Alcance por departamento de las cuentas demo. ADMIN no requiere filas:
+    # su alcance es global por rol. DEMO-OTRA queda fuera del alcance de las
+    # cuentas operativas para poder probar denegación entre departamentos.
+    for username in (
+        "demo.solicitante",
+        "demo.aprobador",
+        "demo.almacenista",
+        "demo.comprador",
+        "demo.jefe",
+        "demo.temporal",
+    ):
+        for code in ("DEMO-MINA", "DEMO-MANT"):
+            _assign_department(db, users[username].id, departments[code].id)
+    for username in ("demo.gerencia", "demo.auditor"):
+        for code in ("DEMO-MINA", "DEMO-MANT", "DEMO-OTRA"):
+            _assign_department(db, users[username].id, departments[code].id)
 
     warehouse = db.execute(
         select(Warehouse).where(Warehouse.company_id == company.id, Warehouse.code == DEMO_WAREHOUSE)

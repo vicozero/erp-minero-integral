@@ -117,3 +117,17 @@ def auth_header(client: TestClient, username: str = "demo.admin") -> dict[str, s
 
 def direct_token(user_id: uuid.UUID) -> dict[str, str]:
     return {"Authorization": f"Bearer {create_access_token(user_id)}"}
+
+
+def login_with_cookie(client: TestClient, username: str = "demo.admin") -> dict[str, str]:
+    """Inicia sesión usando cookies reales y devuelve la cabecera CSRF."""
+    response = client.post(
+        "/api/v1/auth/login",
+        json={"username": username, "password": os.environ["DEMO_PASSWORD"]},
+    )
+    assert response.status_code == 200, response.text
+    return {"X-CSRF-Token": response.json()["csrf_token"]}
+
+
+def clear_session(client: TestClient) -> None:
+    client.cookies.clear()

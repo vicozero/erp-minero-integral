@@ -86,7 +86,7 @@ La base piloto requiere un paso administrativo previo. El rol `erp_minero_app` t
 
 | Verificación | Resultado |
 |---|---|
-| Backend `python -m pytest -q` | 60 passed |
+| Backend `python -m pytest -q` | 63 passed (60 originales + 3 de `Host`/`Origin`) |
 | Backend `ruff check .` / `mypy app` | Sin errores / 62 archivos sin errores |
 | Frontend `npm run test -- --run` | 9 passed (7 originales + 2 de autorización parcial) |
 | Frontend `npm run build` | JS 220.63 kB, CSS 8.09 kB |

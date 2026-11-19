@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     # necesita CORS. Los orígenes por defecto solo cubren el servidor de
     # desarrollo de Vite en localhost; el perfil piloto puede dejarlos vacíos.
     CORS_ALLOW_ORIGINS: str = "http://127.0.0.1:5173,http://localhost:5173"
+    # Host/Origen permitidos para la API. `testserver` cubre las pruebas con
+    # TestClient. En intranet se reemplaza por el FQDN interno autorizado.
+    ALLOWED_HOSTS: str = "127.0.0.1,localhost,testserver"
     SECURITY_HSTS_ENABLED: bool = False
 
     # Cookies de sesión del portal web. Secure debe activarse únicamente cuando

@@ -10,7 +10,7 @@
 
 | Comando | Directorio | Resultado |
 |---|---|---|
-| `python -m pytest -q` | `backend` | **60 passed** |
+| `python -m pytest -q` | `backend` | **63 passed** (60 originales + 3 nuevas de validación `Host`/`Origin`) |
 | `python -m ruff check .` | `backend` | `All checks passed!` |
 | `python -m mypy app` | `backend` | `Success: no issues found in 62 source files` |
 | `npm.cmd run test -- --run` | `frontend` | **9 passed** (3 cliente API, 2 autorización parcial, 4 App) |
@@ -64,6 +64,7 @@ Realizada sobre `http://127.0.0.1:8080` con el navegador integrado, sin acceso a
 | Menú «Auditoría» | `/auditoria`, heading «Bitácora de auditoría». |
 | «Cerrar sesión» | Redirect a `/login`; formulario disponible. |
 | Reinicio del portal | Tras `portal_ctl.py restart` y recarga, dashboard sigue visible; `/api/v1/auth/me` → 200. |
+| Validación `Host`/`Origin` | 3 pruebas backend: `Host` ajeno → 400, `Origin` ajeno en escritura → 403, `Host`/`Origin` locales → 200. Tras reiniciar el portal, `verificar_portal.py` sigue 18/18. |
 | CSS responsive | El bundle cargado expone los breakpoints `max-width: 1100px`, `900px` y `640px` (verificado por CSSOM en la página). |
 
 No se registraron errores 5xx ni fallos de transporte en ninguna ruta. El único mensaje de consola es el 401 inicial de `/auth/me` antes de iniciar sesión, que es el comportamiento esperado.

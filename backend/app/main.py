@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import uuid
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.api.v1.routers import admin, audit, auth, catalogs, health, inventory, purchasing, requisitions
 from app.core.config import settings
@@ -19,6 +21,10 @@ def _cors_origins() -> list[str]:
     return [origin.strip() for origin in settings.CORS_ALLOW_ORIGINS.split(",") if origin.strip()]
 
 
+def _allowed_hosts() -> set[str]:
+    return {host.strip().lower() for host in settings.ALLOWED_HOSTS.split(",") if host.strip()}
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins(),
@@ -26,6 +32,25 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "X-CSRF-Token", "X-Request-ID"],
 )
+
+
+@app.middleware("http")
+async def validate_host_and_origin(request: Request, call_next):
+    """Rechaza Host desconocidos y Origen cross-site antes de tocar la API."""
+    allowed_hosts = _allowed_hosts()
+    host = (request.url.hostname or "").lower()
+    if not host or host not in allowed_hosts:
+        return JSONResponse(status_code=400, content={"detail": "Host no permitido"})
+
+    origin = request.headers.get("origin")
+    if origin:
+        try:
+            origin_host = (urlsplit(origin).hostname or "").lower()
+        except ValueError:
+            origin_host = ""
+        if not origin_host or origin_host not in allowed_hosts:
+            return JSONResponse(status_code=403, content={"detail": "Origen no permitido"})
+    return await call_next(request)
 
 
 @app.middleware("http")

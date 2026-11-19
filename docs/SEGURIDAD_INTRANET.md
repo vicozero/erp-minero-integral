@@ -19,6 +19,7 @@
 
 - El bundle compilado usa rutas relativas (`VITE_API_URL` vacío). La API y la UI comparten origen en `127.0.0.1:8080`.
 - `CORS_ALLOW_ORIGINS` por defecto solo permite los puertos de desarrollo de Vite en localhost; el perfil piloto lo deja vacío. No hay comodines ni `allow_origins=["*"]`.
+- `ALLOWED_HOSTS` rechaza con HTTP 400 cualquier cabecera `Host` desconocida; si el navegador envía `Origin`, se valida su host y se rechaza con HTTP 403 cuando no coincide. El valor por defecto cubre solo loopback y `testserver`; en intranet debe sustituirse por el FQDN autorizado.
 - `allow_credentials=True` pero con orígenes explícitos; `allow_methods` y `allow_headers` están acotados.
 
 ### 1.3 Cabeceras de respuesta
@@ -73,7 +74,7 @@ Content-Security-Policy: default-src 'self'; base-uri 'self'; frame-ancestors 'n
 
 1. Autorización por escrito de infraestructura y seguridad.
 2. Certificado TLS y nombre interno definidos; nginx configurado desde `deploy/nginx/erp-minero.conf`.
-3. Perfil de entorno con `SESSION_COOKIE_SECURE=true`, `SESSION_COOKIE_SAMESITE=strict` (o `lax`), `SECURITY_HSTS_ENABLED=true`, `CORS_ALLOW_ORIGINS=` vacío.
+3. Perfil de entorno con `SESSION_COOKIE_SECURE=true`, `SESSION_COOKIE_SAMESITE=strict` (o `lax`), `SECURITY_HSTS_ENABLED=true`, `CORS_ALLOW_ORIGINS=` vacío y `ALLOWED_HOSTS=<fqdn-interno-autorizado>`.
 4. Frontend recompilado con `VITE_API_URL=` vacío.
 5. Backend y PostgreSQL enlazados a `127.0.0.1`; nginx es el único socket expuesto.
 6. Firewall configurado por el administrador de TI; **no** por este proyecto.

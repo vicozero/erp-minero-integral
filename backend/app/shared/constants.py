@@ -111,6 +111,18 @@ PERMISSIONS_WMS_VIRTUAL: tuple[str, ...] = (
     "warehouse.map.manage",
 )
 
+# Lote 4: catálogo de permisos para funciones que aún no tienen pantalla
+# operativa. Se registran para que SUPERADMIN tenga cobertura completa sin
+# simular módulos no implementados.
+PERMISSIONS_LOTE4: tuple[str, ...] = (
+    "report.view",
+    "budget.view",
+    "budget.manage",
+    "system.settings.view",
+    "system.settings.manage",
+    "integration.manage",
+)
+
 # Aliases en español de los permisos operativos del Lote B. Se conserva
 # `almacenes.kardex -> inventory.kardex.view` para no romper el contrato actual.
 PERMISSIONS_WMS_LOTE_B_ALIASES: tuple[str, ...] = (
@@ -134,6 +146,7 @@ PERMISSIONS: tuple[str, ...] = (
     + PERMISSIONS_DOCUMENTAL
     + PERMISSIONS_SLA
     + PERMISSIONS_WMS_VIRTUAL
+    + PERMISSIONS_LOTE4
 )
 
 # Alias español -> código canónico heredado. Permite que una política escrita
@@ -165,6 +178,12 @@ PERMISSION_ALIASES: dict[str, str] = {
     "ubicaciones.administrar": "warehouse.location.manage",
     "mapas.almacen.consultar": "warehouse.map.view",
     "mapas.almacen.administrar": "warehouse.map.manage",
+    "reportes.consultar": "report.view",
+    "presupuestos.consultar": "budget.view",
+    "presupuestos.administrar": "budget.manage",
+    "configuracion.consultar": "system.settings.view",
+    "configuracion.administrar": "system.settings.manage",
+    "integraciones.administrar": "integration.manage",
     "almacenes.entradas": "wms.receipt.create",
     "almacenes.salidas": "wms.issue.create",
     "almacenes.devoluciones": "wms.return.create",
@@ -272,6 +291,7 @@ _WMS_B_APPROVE = PERMISSIONS_WMS_LOTE_B_APPROVE
 _WMS_B_VIEW = PERMISSIONS_WMS_LOTE_B_VIEW
 
 ROLE_PERMISSIONS: dict[str, tuple[str, ...]] = {
+    "SUPERADMIN": PERMISSIONS,
     "ADMIN": PERMISSIONS,
     "SOLICITANTE": _SOLICITANTE + _WMS_READ,
     "JEFE_DEPARTAMENTO": _SOLICITANTE + _APROBADOR + ("departamentos.consultar",) + _WMS_READ,
@@ -295,6 +315,7 @@ ROLE_PERMISSIONS: dict[str, tuple[str, ...]] = {
 }
 
 ROLE_LABELS: dict[str, str] = {
+    "SUPERADMIN": "Superadministrador",
     "ADMIN": "Administrador",
     "SOLICITANTE": "Solicitante",
     "JEFE_DEPARTAMENTO": "Jefe de departamento",
@@ -307,8 +328,11 @@ ROLE_LABELS: dict[str, str] = {
     "AUDITOR": "Auditor",
 }
 
-ADMIN_ROLE_CODES: frozenset[str] = frozenset({"ADMIN"})
-APPROVER_ROLE_CODES: frozenset[str] = frozenset({"ADMIN", "APROBADOR", "JEFE_DEPARTAMENTO"})
+ADMIN_ROLE_CODES: frozenset[str] = frozenset({"SUPERADMIN", "ADMIN"})
+SUPERADMIN_ROLE_CODE = "SUPERADMIN"
+APPROVER_ROLE_CODES: frozenset[str] = frozenset(
+    {"SUPERADMIN", "ADMIN", "APROBADOR", "JEFE_DEPARTAMENTO"}
+)
 
 REQUISITION_STATUSES = ("DRAFT", "SUBMITTED", "APPROVED", "PARTIALLY_APPROVED", "REJECTED", "CANCELLED", "IN_PROGRESS", "CLOSED")
 REQUISITION_LINE_STATUSES = ("OPEN", "PARTIAL", "AUTHORISED", "CANCELLED", "CLOSED")

@@ -16,6 +16,8 @@ import { Inventory } from './features/inventory/Inventory';
 import { Purchases } from './features/purchases/Purchases';
 import { Requisitions } from './features/requisitions/Requisitions';
 import { Locations } from './features/wms/Locations';
+import { MyAccount } from './features/security/MyAccount';
+import { Permissions, Roles } from './features/security/RolesAndPermissions';
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
@@ -77,6 +79,15 @@ export default function App() {
             <Route
               path="auditoria"
               element={<RequirePermission codes={PERM.VIEW_AUDIT}><Audit /></RequirePermission>}
+            />
+            <Route path="mi-cuenta" element={<MyAccount />} />
+            <Route
+              path="roles"
+              element={<RequirePermission codes={PERM.ADMIN_USERS}><Roles /></RequirePermission>}
+            />
+            <Route
+              path="permisos"
+              element={<RequirePermission codes={PERM.ADMIN_USERS}><Permissions /></RequirePermission>}
             />
             <Route path="cambiar-contraseña" element={<ChangePassword />} />
             <Route path="acceso-denegado" element={<AccessDenied />} />

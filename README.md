@@ -19,7 +19,7 @@ Aplicación web local para gestión de requisiciones, autorizaciones, almacén, 
 - PostgreSQL 16 o superior ejecutándose en `127.0.0.1`.
 - Git.
 
-> En el entorno donde se generó este proyecto no había PostgreSQL instalado ni `DATABASE_URL`. El código y las migraciones están preparados; para ejecutar la aplicación se debe proporcionar una base local.
+> En el entorno actual PostgreSQL 17 está instalado y activo en `127.0.0.1:5432`; el perfil local apunta a `erp_minero_dev`. Para un piloto se debe crear una base independiente con autorización formal.
 
 ## Arranque del backend
 
@@ -71,6 +71,14 @@ uvicorn app.main:app --host 127.0.0.1 --port 8000
 Documentación interactiva: <http://127.0.0.1:8000/docs>  
 Salud: <http://127.0.0.1:8000/health>
 
+Para detener y reiniciar la API y el proxy local sin afectar al servidor Vite:
+
+```powershell
+cd E:\ERP_MINERO
+python scripts/portal_ctl.py restart
+python scripts/portal_ctl.py stop
+```
+
 ## Arranque del frontend
 
 En otra terminal:
@@ -97,6 +105,8 @@ Todas usan la contraseña definida en `DEMO_PASSWORD`:
 | `demo.almacenista` | ALMACENISTA | Reservar, entregar, consultar kardex |
 | `demo.comprador` | COMPRADOR | Crear OC, aprobar y recibir |
 
+Además existe la cuenta maestra `admin` con rol `SUPERADMIN`, creada con el comando `python -m app.modules.identity.bootstrap_admin` sobre `erp_minero_dev`. Su contraseña inicial era temporal y ya fue rotada durante la validación; la credencial vigente no se guarda en el repositorio. El comando solo puede ejecutarse sobre la base de desarrollo y exige cambio de contraseña en el primer acceso.
+
 ## Pruebas
 
 ```powershell
@@ -110,9 +120,9 @@ npm.cmd run build
 
 Resultados obtenidos en el entorno de desarrollo:
 
-- Backend: 114 pruebas aprobadas con PostgreSQL real (`erp_minero_test`); no se usa SQLite.
-- Backend: `ruff check app tests` y `mypy app` sin errores.
-- Frontend: 30 pruebas aprobadas y compilación de producción correcta.
+- Backend: 123 pruebas aprobadas con PostgreSQL real (`erp_minero_test`); no se usa SQLite.
+- Backend: `ruff check app tests` y `mypy app --follow-imports=silent` sin errores.
+- Frontend: 32 pruebas aprobadas y compilación de producción correcta.
 
 Las pruebas requieren `DATABASE_URL` y aplican migraciones Alembic antes de ejecutarse; el arnés solo permite la base `erp_minero_test` y restaura datos sintéticos.
 
@@ -132,6 +142,7 @@ Las pruebas requieren `DATABASE_URL` y aplican migraciones Alembic antes de ejec
 Detalle de formatos: `docs/VALES_ALMACEN_FORMATOS.md`, `docs/REQUISICIONES_FORMATOS.md`, `docs/RESULTADOS_MODULO_DOCUMENTAL.md` y evidencias en `docs/EVIDENCIA_FORMATOS/`.
 Detalle del semáforo: `docs/SLA_SEMAFORO.md` y `docs/RESULTADOS_SEMAFORO_SLA.md`.
 Detalle del almacén virtual: `docs/ALMACEN_VIRTUAL.md` y `docs/RESULTADOS_ALMACEN_VIRTUAL.md`.
+Detalle de seguridad Lote 4: `docs/RESULTADOS_LOTE4_SEGURIDAD.md`.
 
 ## Estado de implementación
 
@@ -139,10 +150,10 @@ Implementado y probado localmente: infraestructura FastAPI/SQLAlchemy/Alembic, a
 
 Pendiente para considerar la entrega completa en producción local:
 
-1. Instalar PostgreSQL 16+ en `127.0.0.1`, crear la base y completar `DATABASE_URL` en `.env`.
-2. Ejecutar `alembic upgrade head` y `python -m app.db.seed` contra esa base (la base de desarrollo sigue en `a1b2c3d4e5f6`; requiere autorización).
+1. Crear `erp_minero_pilot` en `127.0.0.1` con autorización formal y perfil `.env` propio; nunca reutilizar credenciales de desarrollo.
+2. Ejecutar `alembic upgrade head` y sembrar solo datos sintéticos en esa base. La base `erp_minero_dev` ya está en `e5f6a7b8c9d0 (head)` y cuenta con respaldo verificable.
 3. Ejecutar la prueba de concurrencia transaccional (actualmente omitida) con dos sesiones reales.
-4. Verificar el flujo completo desde el navegador contra PostgreSQL.
-5. Autorizar captura móvil, órdenes de movimiento (D-06) y cualquier plano como exacto, si se requieren.
+4. Definir la política de rotación de la credencial maestra y de sesiones antes de cualquier uso fuera de desarrollo.
+5. Autorizar captura móvil, órdenes de movimiento (D-06), plano exacto y pantallas de reportes/presupuestos/configuración/integraciones, si se requieren.
 
 Ninguna función se considera terminada sin sus pruebas ejecutadas.

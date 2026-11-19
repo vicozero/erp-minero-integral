@@ -135,6 +135,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ current_password, new_password }),
     }),
+  changeUsername: (username: string, current_password: string) =>
+    request<User>('/api/v1/auth/username', {
+      method: 'PATCH',
+      body: JSON.stringify({ username, current_password }),
+    }),
   mySessions: () => request<Session[]>('/api/v1/auth/sessions'),
   revokeSession: (id: string) => request<void>(`/api/v1/auth/sessions/${id}/revoke`, { method: 'POST' }),
 

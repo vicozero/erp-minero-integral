@@ -17,6 +17,7 @@ interface AuthState {
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
   changePassword: (current: string, next: string) => Promise<void>;
+  changeUsername: (username: string, currentPassword: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -78,9 +79,13 @@ export function AuthProvider({
     setUser(response.user);
   }, []);
 
+  const changeUsername = useCallback(async (username: string, currentPassword: string) => {
+    setUser(await api.changeUsername(username, currentPassword));
+  }, []);
+
   const value = useMemo(
-    () => ({ user, loading, login, logout, refresh, changePassword }),
-    [user, loading, login, logout, refresh, changePassword],
+    () => ({ user, loading, login, logout, refresh, changePassword, changeUsername }),
+    [user, loading, login, logout, refresh, changePassword, changeUsername],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

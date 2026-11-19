@@ -67,7 +67,7 @@ Resultados:
 ## Limitaciones conocidas
 
 1. No se pudo ejecutar literalmente `empty → head` en una base nueva: el usuario de PostgreSQL no tiene `CREATEDB`. Se verificó la generación SQL offline de toda la cadena y la aplicación incremental en `erp_minero_test`.
-2. La base de desarrollo `erp_minero_dev` permanece en la revisión anterior (`a1b2c3d4e5f6`); no se modificó sin autorización.
+2. La base de desarrollo `erp_minero_dev` fue migrada con autorización hasta `e5f6a7b8c9d0 (head)` en el Lote 4; el respaldo previo quedó en `var/backups/erp_minero_dev_20261119_124648.dump`.
 3. Sin captura móvil, escaneo con cámara ni órdenes de movimiento (D-06 sigue sin aprobarse).
 4. El fondo es referencial; no hay validación contra el almacén físico.
 5. No se conectó a CONTPAQi ni GMAO y no se usaron datos reales.
@@ -75,4 +75,4 @@ Resultados:
 
 ## Siguiente paso
 
-Ejecutar la regresión integral documental → SLA → almacén virtual, actualizar `README.md` y decidir si se autoriza `alembic upgrade head` sobre `erp_minero_dev`.
+La regresión integral quedó ejecutada y `README.md` actualizado. La migración sobre `erp_minero_dev` fue autorizada y aplicada en el Lote 4; el detalle está en `docs/RESULTADOS_LOTE4_SEGURIDAD.md`.

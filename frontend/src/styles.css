@@ -97,7 +97,16 @@ a { color: var(--petrol-600); }
   top: 0;
   height: 100vh;
   overflow-y: auto;
+  overflow-x: hidden;
+  transition: width 0.18s ease;
 }
+.sidebar.is-collapsed { width: 72px; }
+.sidebar.is-collapsed .brand { justify-content: center; padding: 20px 10px; }
+.sidebar.is-collapsed .brand-copy,
+.sidebar.is-collapsed .nav-label,
+.sidebar.is-collapsed .nav-text,
+.sidebar.is-collapsed .sidebar-footer { display: none; }
+.sidebar.is-collapsed .nav-link { justify-content: center; padding: 10px; }
 .brand { display: flex; align-items: center; gap: 12px; padding: 20px 18px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
 .brand strong { display: block; letter-spacing: 0.05em; color: #eef4f8; font-size: 14px; }
 .brand small { color: #7f9aae; letter-spacing: 0.1em; font-size: 10px; }

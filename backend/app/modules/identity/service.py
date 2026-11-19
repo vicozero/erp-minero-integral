@@ -34,7 +34,13 @@ from app.modules.identity.models import (
     UserSession,
 )
 from app.modules.organization.models import Department
-from app.shared.constants import ADMIN_ROLE_CODES, PERMISSIONS, ROLE_LABELS, canonical_permission
+from app.shared.constants import (
+    ADMIN_ROLE_CODES,
+    PERMISSIONS,
+    ROLE_LABELS,
+    SUPERADMIN_ROLE_CODE,
+    canonical_permission,
+)
 
 MAX_FAILED_ATTEMPTS = 5
 LOCK_MINUTES = 15
@@ -344,8 +350,34 @@ class IdentityService:
             return
         if target_id is not None and actor_id == target_id:
             _fail("No puede concederse permisos administrativos a sí mismo.", status.HTTP_403_FORBIDDEN)
+        if role_code == SUPERADMIN_ROLE_CODE:
+            if SUPERADMIN_ROLE_CODE not in IdentityService.role_codes(db, actor_id):
+                _fail("Solo un superadministrador puede asignar ese rol.", status.HTTP_403_FORBIDDEN)
+            return
         if not IdentityService.is_admin(db, actor_id):
             _fail("Solo un administrador puede asignar el rol Administrador.", status.HTTP_403_FORBIDDEN)
+
+    @staticmethod
+    def active_superadmin_ids(db: Session) -> list[uuid.UUID]:
+        now = _now()
+        return list(
+            db.execute(
+                select(AppUser.id)
+                .join(UserRole, UserRole.user_id == AppUser.id)
+                .join(Role, Role.id == UserRole.role_id)
+                .where(
+                    AppUser.status == "ACTIVE",
+                    Role.code == SUPERADMIN_ROLE_CODE,
+                    UserRole.valid_from <= now,
+                    (UserRole.valid_to.is_(None)) | (UserRole.valid_to > now),
+                )
+            ).scalars()
+        )
+
+    @staticmethod
+    def is_last_active_superadmin(db: Session, user_id: uuid.UUID) -> bool:
+        active = IdentityService.active_superadmin_ids(db)
+        return user_id in active and len(active) == 1
 
     @staticmethod
     def create_user(db: Session, payload, actor_id: uuid.UUID) -> tuple[AppUser, str | None]:
@@ -418,6 +450,11 @@ class IdentityService:
         if payload.status is not None:
             if payload.status == "INACTIVE" and actor_id == user_id:
                 _fail("No puede desactivar su propia cuenta.", status.HTTP_400_BAD_REQUEST)
+            if payload.status == "INACTIVE" and IdentityService.is_last_active_superadmin(db, user_id):
+                _fail(
+                    "No puede desactivar el último superadministrador activo.",
+                    status.HTTP_400_BAD_REQUEST,
+                )
             user.status = payload.status
             if payload.status == "INACTIVE":
                 user.deactivated_at = _now()
@@ -458,6 +495,11 @@ class IdentityService:
             _fail("No puede dar de baja su propia cuenta.", status.HTTP_400_BAD_REQUEST)
         if user.status == "INACTIVE":
             return user
+        if IdentityService.is_last_active_superadmin(db, user_id):
+            _fail(
+                "No puede dar de baja el último superadministrador activo.",
+                status.HTTP_400_BAD_REQUEST,
+            )
         user.status = "INACTIVE"
         user.deactivated_at = _now()
         user.deactivated_by = actor_id
@@ -589,6 +631,11 @@ class IdentityService:
         ).scalar_one_or_none()
         if assignment is None:
             _fail("El usuario no tiene ese rol.", status.HTTP_404_NOT_FOUND)
+        if role_code == SUPERADMIN_ROLE_CODE and IdentityService.is_last_active_superadmin(db, user_id):
+            _fail(
+                "No puede retirar el rol al último superadministrador activo.",
+                status.HTTP_400_BAD_REQUEST,
+            )
         if role_code in ADMIN_ROLE_CODES and len(IdentityService.role_codes(db, user_id)) == 1:
             _fail("No puede retirar el último rol administrativo.", status.HTTP_400_BAD_REQUEST)
         # Se cierra la vigencia en lugar de borrar la fila histórica.
@@ -602,6 +649,55 @@ class IdentityService:
             before={"role": role_code},
         )
         db.flush()
+
+    @staticmethod
+    def change_username(
+        db: Session,
+        user_id: uuid.UUID,
+        payload,
+        actor_id: uuid.UUID,
+        *,
+        keep_session_id: uuid.UUID | None = None,
+    ) -> AppUser:
+        user = db.get(AppUser, user_id)
+        if user is None:
+            _fail("Usuario inexistente.", status.HTTP_404_NOT_FOUND)
+        if not verify_password(payload.current_password, user.password_hash):
+            _fail("La contraseña actual no es correcta.", status.HTTP_403_FORBIDDEN)
+        if payload.username == user.username:
+            _fail("El nombre de usuario ya es el mismo.", status.HTTP_422_UNPROCESSABLE_ENTITY)
+        duplicate = db.execute(
+            select(AppUser.id).where(AppUser.username == payload.username, AppUser.id != user_id)
+        ).scalar_one_or_none()
+        if duplicate is not None:
+            _fail("El nombre de usuario ya está en uso.", status.HTTP_409_CONFLICT)
+
+        before = {"username": user.username}
+        user.username = payload.username
+        user.updated_at = _now()
+        user.updated_by = actor_id
+
+        sessions = db.execute(
+            select(UserSession).where(
+                UserSession.user_id == user_id,
+                UserSession.revoked_at.is_(None),
+            )
+        ).scalars()
+        for session in sessions:
+            if session.id != keep_session_id:
+                IdentityService.revoke_session(db, session, actor_id)
+
+        AuditService.record(
+            db,
+            action="USERNAME_CHANGED",
+            entity_type="AppUser",
+            entity_id=user.id,
+            actor_id=actor_id,
+            before=before,
+            after={"username": user.username, "other_sessions_revoked": True},
+        )
+        db.flush()
+        return user
 
     @staticmethod
     def change_password(db: Session, user_id: uuid.UUID, current: str, new: str, actor_id: uuid.UUID) -> None:

@@ -20,6 +20,7 @@ from app.modules.identity.schemas import (
     SessionOut,
     SessionResponse,
     UserOut,
+    UsernameIn,
 )
 from app.modules.identity.service import AuthenticationError, IdentityService
 
@@ -90,6 +91,27 @@ def me(
     db: Session = Depends(get_db),
 ) -> UserOut:
     return UserOut(**IdentityService.user_out(db, current_user))
+
+
+@router.patch("/username", response_model=UserOut)
+def change_username(
+    payload: UsernameIn,
+    request: Request,
+    current_user: AppUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> UserOut:
+    """Cambia el usuario propio, exige contraseña actual y cierra otras sesiones."""
+    session = getattr(request.state, "session", None)
+    keep_session_id = session.id if isinstance(session, UserSession) else None
+    updated = IdentityService.change_username(
+        db,
+        current_user.id,
+        payload,
+        current_user.id,
+        keep_session_id=keep_session_id,
+    )
+    db.commit()
+    return UserOut(**IdentityService.user_out(db, updated))
 
 
 @router.post("/change-password", response_model=SessionResponse)

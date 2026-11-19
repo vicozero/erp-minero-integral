@@ -67,6 +67,13 @@ class ChangePasswordIn(BaseModel):
         return validate_password_policy(value)
 
 
+class UsernameIn(BaseModel):
+    """Cambio controlado del nombre de usuario desde Mi cuenta."""
+
+    username: str = Field(min_length=3, max_length=80, pattern=r"^[A-Za-z0-9._-]+$")
+    current_password: str = Field(min_length=1, max_length=200)
+
+
 class PasswordResetIn(BaseModel):
     """El administrador no envía contraseñas: el servidor genera una temporal."""
 

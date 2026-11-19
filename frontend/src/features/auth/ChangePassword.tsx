@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import { ErrorMessage, PageHeader, SuccessMessage } from '../../components/ui';
 
-export function ChangePassword() {
+export function PasswordChangeForm({ onChanged }: { onChanged?: () => void }) {
   const { changePassword, user } = useAuth();
   const navigate = useNavigate();
   const [current, setCurrent] = useState('');
@@ -28,6 +28,7 @@ export function ChangePassword() {
       setCurrent('');
       setNext('');
       setConfirm('');
+      onChanged?.();
       if (user?.must_change_password) {
         window.setTimeout(() => navigate('/', { replace: true }), 900);
       }
@@ -40,57 +41,65 @@ export function ChangePassword() {
 
   return (
     <>
+      <ErrorMessage message={error} />
+      <SuccessMessage message={success} />
+      {user?.must_change_password && (
+        <div className="alert alert-warning" role="status">
+          Su contraseña temporal debe sustituirse antes de continuar con las operaciones.
+        </div>
+      )}
+      <form onSubmit={handleSubmit}>
+        <label htmlFor="current-password">Contraseña actual</label>
+        <input
+          id="current-password"
+          type="password"
+          autoComplete="current-password"
+          value={current}
+          onChange={(event) => setCurrent(event.target.value)}
+          required
+        />
+        <label htmlFor="new-password">Contraseña nueva</label>
+        <input
+          id="new-password"
+          type="password"
+          autoComplete="new-password"
+          value={next}
+          onChange={(event) => setNext(event.target.value)}
+          minLength={12}
+          required
+        />
+        <label htmlFor="confirm-password">Confirmar contraseña nueva</label>
+        <input
+          id="confirm-password"
+          type="password"
+          autoComplete="new-password"
+          value={confirm}
+          onChange={(event) => setConfirm(event.target.value)}
+          minLength={12}
+          required
+        />
+        <p className="hint">
+          Mínimo 12 caracteres, con mayúscula, minúscula, número y carácter especial.
+        </p>
+        <div className="form-actions">
+          <button className="button button-primary" type="submit" disabled={loading}>
+            {loading ? 'Guardando…' : 'Actualizar contraseña'}
+          </button>
+        </div>
+      </form>
+    </>
+  );
+}
+
+export function ChangePassword() {
+  return (
+    <>
       <PageHeader
         title="Cambiar contraseña"
         subtitle="La contraseña se almacena con Argon2id; nunca se muestra ni se registra"
       />
       <section className="panel panel-narrow">
-        <ErrorMessage message={error} />
-        <SuccessMessage message={success} />
-        {user?.must_change_password && (
-          <div className="alert alert-warning" role="status">
-            Su contraseña temporal debe sustituirse antes de continuar con las operaciones.
-          </div>
-        )}
-        <form onSubmit={handleSubmit}>
-          <label htmlFor="current-password">Contraseña actual</label>
-          <input
-            id="current-password"
-            type="password"
-            autoComplete="current-password"
-            value={current}
-            onChange={(event) => setCurrent(event.target.value)}
-            required
-          />
-          <label htmlFor="new-password">Contraseña nueva</label>
-          <input
-            id="new-password"
-            type="password"
-            autoComplete="new-password"
-            value={next}
-            onChange={(event) => setNext(event.target.value)}
-            minLength={12}
-            required
-          />
-          <label htmlFor="confirm-password">Confirmar contraseña nueva</label>
-          <input
-            id="confirm-password"
-            type="password"
-            autoComplete="new-password"
-            value={confirm}
-            onChange={(event) => setConfirm(event.target.value)}
-            minLength={12}
-            required
-          />
-          <p className="hint">
-            Mínimo 12 caracteres, con mayúscula, minúscula, número y carácter especial.
-          </p>
-          <div className="form-actions">
-            <button className="button button-primary" type="submit" disabled={loading}>
-              {loading ? 'Guardando…' : 'Actualizar contraseña'}
-            </button>
-          </div>
-        </form>
+        <PasswordChangeForm />
       </section>
     </>
   );

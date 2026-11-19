@@ -5,6 +5,7 @@ import { can, PERM } from '../auth/permissions';
 import { Icon, type IconName } from './Icon';
 
 const roleLabels: Record<string, string> = {
+  SUPERADMIN: 'Superadministrador',
   ADMIN: 'Administrador',
   SOLICITANTE: 'Solicitante',
   JEFE_DEPARTAMENTO: 'Jefe de departamento',
@@ -47,7 +48,10 @@ const navGroups: { label: string; items: NavItem[] }[] = [
   {
     label: 'Administración',
     items: [
-      { to: '/usuarios', label: 'Usuarios', icon: 'users', codes: PERM.ADMIN_USERS },
+      { to: '/mi-cuenta', label: 'Seguridad · Mi cuenta', icon: 'key', codes: [] },
+      { to: '/usuarios', label: 'Seguridad · Usuarios', icon: 'users', codes: PERM.ADMIN_USERS },
+      { to: '/roles', label: 'Seguridad · Roles', icon: 'users', codes: PERM.ADMIN_USERS },
+      { to: '/permisos', label: 'Seguridad · Permisos', icon: 'audit', codes: PERM.ADMIN_USERS },
     ],
   },
 ];
@@ -65,6 +69,7 @@ export function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
+  const [collapsed, setCollapsed] = useState(false);
   const [dark, setDark] = useState(() => document.documentElement.dataset.theme === 'dark');
 
   const groups = useMemo(() => {
@@ -96,10 +101,10 @@ export function Layout() {
 
   return (
     <div className="app-shell">
-      <aside className="sidebar">
+      <aside className={collapsed ? 'sidebar is-collapsed' : 'sidebar'}>
         <div className="brand">
           <span className="brand-mark">EM</span>
-          <div>
+          <div className="brand-copy">
             <strong>ERP MINERO</strong>
             <small>INTEGRAL · LOCAL</small>
           </div>
@@ -116,7 +121,7 @@ export function Layout() {
                   className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
                 >
                   <Icon name={item.icon} size={17} />
-                  {item.label}
+                  <span className="nav-text">{item.label}</span>
                 </NavLink>
               ))}
             </div>
@@ -156,15 +161,25 @@ export function Layout() {
             <button
               type="button"
               className="icon-button"
+              onClick={() => setCollapsed((value) => !value)}
+              aria-label={collapsed ? 'Expandir menú lateral' : 'Plegar menú lateral'}
+              aria-expanded={!collapsed}
+              title={collapsed ? 'Expandir menú' : 'Plegar menú'}
+            >
+              <Icon name="menu" size={17} />
+            </button>
+            <button
+              type="button"
+              className="icon-button"
               onClick={toggleTheme}
               aria-label={dark ? 'Activar modo claro' : 'Activar modo oscuro'}
               title={dark ? 'Modo claro' : 'Modo oscuro'}
             >
               <Icon name={dark ? 'sun' : 'moon'} size={17} />
             </button>
-            <NavLink className="button button-ghost" to="/cambiar-contraseña">
+            <NavLink className="button button-ghost" to="/mi-cuenta">
               <Icon name="key" size={14} />
-              Cambiar contraseña
+              Mi cuenta
             </NavLink>
             <button type="button" className="button button-ghost" onClick={handleLogout}>
               <Icon name="logout" size={14} />
@@ -179,7 +194,7 @@ export function Layout() {
               <Icon name="key" size={16} />
               <span>
                 Su contraseña es temporal. Debe cambiarla antes de continuar.{' '}
-                <NavLink to="/cambiar-contraseña">Cambiar ahora</NavLink>
+                <NavLink to="/mi-cuenta">Cambiar ahora</NavLink>
               </span>
             </div>
           )}

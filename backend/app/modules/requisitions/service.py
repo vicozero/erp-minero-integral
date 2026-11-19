@@ -12,10 +12,18 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.modules.audit.models import AuditLog
 from app.modules.audit.service import AuditService
 from app.modules.costing.models import CostCenter
-from app.modules.documentation.models import DocumentEvent, DocumentRegistry
+from app.modules.documentation.models import (
+    DocumentEvent,
+    DocumentRegistry,
+    DocumentRender,
+    WarehouseVoucher,
+)
+from app.modules.identity.models import AppUser
 from app.modules.identity.service import IdentityService
+from app.modules.inventory.models import StockMovement, StockReservation
 from app.modules.inventory.service import InventoryService
 from app.modules.master_data.models import Item, Uom
 from app.modules.organization.models import Department, MiningUnit, Warehouse
@@ -725,3 +733,231 @@ class RequisitionService:
         if not path.is_file():
             _fail("El archivo adjunto no está disponible.", status.HTTP_404_NOT_FOUND)
         return path
+
+    @staticmethod
+    def trace(db: Session, actor_id: uuid.UUID, requisition_id: uuid.UUID) -> dict:
+        """Devuelve la cadena documental completa sin escribir ni generar movimientos."""
+        req = db.get(Requisition, requisition_id)
+        if req is None:
+            _fail("Requisición inexistente.", status.HTTP_404_NOT_FOUND)
+        IdentityService.assert_department_access(db, actor_id, req.department_id)
+        line_ids = [
+            row[0]
+            for row in db.execute(
+                select(RequisitionLine.id).where(RequisitionLine.requisition_id == req.id)
+            ).all()
+        ]
+        tracking_full = SlaService._requisition_out(db, req)
+        tracking = {
+            key: tracking_full.get(key)
+            for key in (
+                "sla",
+                "administrative_status",
+                "pending_days",
+                "fulfillment_percent",
+                "needed_at",
+            )
+        }
+
+        approvals: list[dict] = []
+        for decision in db.execute(
+            select(ApprovalDecision)
+            .join(ApprovalStep, ApprovalDecision.approval_step_id == ApprovalStep.id)
+            .join(ApprovalRequest, ApprovalStep.approval_request_id == ApprovalRequest.id)
+            .where(ApprovalRequest.requisition_id == req.id)
+            .order_by(ApprovalStep.step_no, ApprovalDecision.created_at)
+        ).scalars():
+            actor = db.get(AppUser, decision.decided_by) if decision.decided_by else None
+            approvals.append(
+                {
+                    "id": decision.id,
+                    "decision": decision.decision,
+                    "approved_qty": decision.approved_qty,
+                    "reason": decision.reason,
+                    "decided_at": decision.decided_at,
+                    "decided_by": actor.full_name if actor else None,
+                }
+            )
+
+        reservations: list[dict] = []
+        if line_ids:
+            for reservation_row in db.execute(
+                select(StockReservation).where(StockReservation.requisition_line_id.in_(line_ids))
+            ).scalars():
+                reservations.append(
+                    {
+                        "id": reservation_row.id,
+                        "reservation_no": reservation_row.reservation_no,
+                        "quantity": reservation_row.quantity,
+                        "consumed_qty": reservation_row.consumed_qty,
+                        "status": reservation_row.status,
+                        "created_at": reservation_row.created_at,
+                        "expires_at": reservation_row.expires_at,
+                    }
+                )
+
+        deliveries: list[dict] = []
+        if line_ids:
+            for movement_row in db.execute(
+                select(StockMovement).where(
+                    StockMovement.requisition_line_id.in_(line_ids),
+                    StockMovement.movement_type == "ISSUE",
+                    StockMovement.status == "POSTED",
+                )
+            ).scalars():
+                deliveries.append(
+                    {
+                        "id": movement_row.id,
+                        "movement_no": movement_row.movement_no,
+                        "quantity": movement_row.quantity,
+                        "posted_at": movement_row.posted_at,
+                        "source_document_type": movement_row.source_document_type,
+                    }
+                )
+
+        vouchers: list[dict] = []
+        voucher_rows = list(
+            db.execute(
+                select(WarehouseVoucher)
+                .where(WarehouseVoucher.source_requisition_id == req.id)
+                .order_by(WarehouseVoucher.created_at)
+            ).scalars()
+        )
+        voucher_ids = [row.id for row in voucher_rows]
+        renders_by_voucher: dict[uuid.UUID, list[dict]] = {key: [] for key in voucher_ids}
+        if voucher_ids:
+            for render in db.execute(
+                select(DocumentRender).where(
+                    DocumentRender.entity_type == "WarehouseVoucher",
+                    DocumentRender.entity_id.in_(voucher_ids),
+                )
+            ).scalars():
+                renders_by_voucher.setdefault(render.entity_id, []).append(
+                    {
+                        "id": render.id,
+                        "document_format": render.document_format,
+                        "sha256": render.sha256,
+                        "is_reprint": render.is_reprint,
+                        "rendered_at": render.rendered_at,
+                    }
+                )
+        for voucher in voucher_rows:
+            vouchers.append(
+                {
+                    "id": voucher.id,
+                    "document_no": voucher.document_no,
+                    "status": voucher.status,
+                    "issued_at": voucher.issued_at,
+                    "received_by_name": voucher.received_by_name,
+                    "authorized_by_name": voucher.authorized_by_name,
+                    "dispatched_by_name": voucher.dispatched_by_name,
+                    "renders": sorted(
+                        renders_by_voucher.get(voucher.id, []),
+                        key=lambda item: item["rendered_at"],
+                    ),
+                }
+            )
+
+        registry_ids = [req.document_registry_id] if req.document_registry_id else []
+        registry_ids.extend(
+            voucher.document_registry_id for voucher in voucher_rows if voucher.document_registry_id
+        )
+        document_events: list[dict] = []
+        if registry_ids:
+            for document_event_row in db.execute(
+                select(DocumentEvent)
+                .where(DocumentEvent.document_registry_id.in_(registry_ids))
+                .order_by(DocumentEvent.occurred_at)
+            ).scalars():
+                document_events.append(
+                    {
+                        "event_type": document_event_row.event_type,
+                        "from_status": document_event_row.from_status,
+                        "to_status": document_event_row.to_status,
+                        "occurred_at": document_event_row.occurred_at,
+                        "metadata": document_event_row.metadata_json,
+                    }
+                )
+
+        audit_events: list[dict] = []
+        entity_ids = [req.id, *voucher_ids]
+        for audit_event_row in db.execute(
+            select(AuditLog)
+            .where(AuditLog.entity_id.in_(entity_ids))
+            .order_by(AuditLog.occurred_at.desc())
+        ).scalars():
+            audit_events.append(
+                {
+                    "action": audit_event_row.action,
+                    "entity_type": audit_event_row.entity_type,
+                    "actor_username": audit_event_row.actor_username,
+                    "occurred_at": audit_event_row.occurred_at,
+                    "request_id": audit_event_row.request_id,
+                }
+            )
+
+        sla_result = tracking["sla"] or {}
+        stages = [
+            {
+                "stage": "REQUISICION",
+                "label": "Requisición",
+                "completed": True,
+                "document_no": req.document_no,
+                "occurred_at": req.created_at,
+                "detail": req.status,
+            },
+            {
+                "stage": "AUTORIZACION",
+                "label": "Autorización",
+                "completed": bool(approvals) or req.approved_at is not None,
+                "document_no": req.document_no,
+                "occurred_at": req.approved_at,
+                "detail": f"{len(approvals)} decisión(es) registradas",
+            },
+            {
+                "stage": "RESERVA",
+                "label": "Reserva",
+                "completed": bool(reservations),
+                "occurred_at": min((item["created_at"] for item in reservations), default=None),
+                "detail": f"{len(reservations)} reserva(s)",
+            },
+            {
+                "stage": "ENTREGA",
+                "label": "Entrega",
+                "completed": bool(deliveries),
+                "occurred_at": min((item["posted_at"] for item in deliveries), default=None),
+                "detail": f"{len(deliveries)} movimiento(s) de salida",
+            },
+            {
+                "stage": "VALE",
+                "label": "Vale de almacén",
+                "completed": bool(vouchers),
+                "document_no": vouchers[0]["document_no"] if vouchers else None,
+                "occurred_at": vouchers[0]["issued_at"] if vouchers else None,
+                "detail": f"{len(vouchers)} vale(s)",
+            },
+            {
+                "stage": "SEGUIMIENTO",
+                "label": "Seguimiento SLA",
+                "completed": bool(sla_result.get("measured")),
+                "document_no": req.document_no,
+                "occurred_at": sla_result.get("base_at"),
+                "detail": (
+                    f"{sla_result.get('label')} · surtido {tracking['fulfillment_percent']}%"
+                ),
+            },
+        ]
+        return {
+            "requisition_id": req.id,
+            "document_no": req.document_no,
+            "administrative_status": req.status,
+            "tracking": tracking,
+            "stages": stages,
+            "approvals": approvals,
+            "reservations": reservations,
+            "deliveries": deliveries,
+            "vouchers": vouchers,
+            "document_events": document_events,
+            "audit_events": audit_events,
+            "generated_at": datetime.now(timezone.utc),
+        }

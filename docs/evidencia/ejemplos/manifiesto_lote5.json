@@ -1,0 +1,62 @@
+{
+  "lote": "Lote 5 — Documentos, vales y semáforo",
+  "fecha": "2026-11-19",
+  "entorno": "local, datos sintéticos aislados",
+  "origen": "Portal web http://localhost:5173, sesión autenticada con la credencial de desarrollo; descargas autorizadas por la API",
+  "documentos": {
+    "vale": {
+      "document_no": "VA-000166",
+      "id": "e6c2317e-cea5-45c6-b559-a8c09c729471",
+      "requisicion_origen": "REQ-LAG-2026-000003",
+      "estado_al_descargar": "DRAFT",
+      "observacion": "Vale generado desde el portal sin entregas confirmadas; cantidad despachada 0 en el formato. No se emitió porque /issue exige movimientos POSTED."
+    },
+    "requisicion": {
+      "document_no": "REQ-LAG-2026-000003",
+      "id": "0048b504-d1df-4b9e-9ccc-0e5a17b88ecf"
+    }
+  },
+  "archivos": [
+    {
+      "archivo": "VA-000166.pdf",
+      "sha256": "89E27D855DAC7A64442AD1C9D93B613439456479CBC094EFE9BEF604C7C80FD1",
+      "bytes": 53611,
+      "content_type": "application/pdf",
+      "verificado": "Carta apaisada 792x612 pt; 10 partidas por hoja; nombres nominales capturados; sin firma gráfica"
+    },
+    {
+      "archivo": "VA-000166.xlsx",
+      "sha256": "F457DA798B8A4A9547856069F9AFBC0A0DCC958E2456A5CCA485DA132E55587A",
+      "bytes": 48185,
+      "content_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "verificado": "24 filas, 8 columnas, área A1:H24; nombres nominales capturados; sin fórmulas"
+    },
+    {
+      "archivo": "REQ-LAG-2026-000003.pdf",
+      "sha256": "65618066DDA3E79A9A5C2EB1211F9214843BFDE9FFA827C9612EAF7774F6E1EB",
+      "bytes": 70060,
+      "content_type": "application/pdf",
+      "verificado": "Carta vertical 612x792 pt; folio presente en el texto extraíble"
+    },
+    {
+      "archivo": "REQ-LAG-2026-000003.xlsx",
+      "sha256": "4F7612C0D84FC2FDE2261A86A4D0648F81C84B5E1320F642FD949811B0C6737B",
+      "bytes": 15001,
+      "content_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "verificado": "Hojas por página y área de impresión conservadas; sin fórmulas"
+    }
+  ],
+  "reimpresion": {
+    "render_original_sha256": "412c12980cc78a6f",
+    "render_reimpresion_sha256": "412c12980cc78a6f",
+    "resultado": "La reimpresión sirvió los mismos bytes del render original; el evento VOUCHER_REPRINTED quedó registrado.",
+    "nota": "Los hashes de reimpresión son los registrados en /api/v1/documents/vouchers/{id}/renders antes de las descargas frescas posteriores a la captura de nombres."
+  },
+  "capturas": [
+    "docs/evidencia/01_vales.png",
+    "docs/evidencia/02_semaforo.png",
+    "docs/evidencia/03_ejemplos.png",
+    "docs/evidencia/04_trazabilidad.png",
+    "docs/evidencia/05_firmas.png"
+  ]
+}

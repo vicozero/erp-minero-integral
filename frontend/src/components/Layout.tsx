@@ -28,6 +28,8 @@ const navGroups: { label: string; items: NavItem[] }[] = [
       { to: '/requisiciones', label: 'Requisiciones', icon: 'requisitions', codes: PERM.VIEW_REQUISITIONS },
       { to: '/autorizaciones', label: 'Autorizaciones', icon: 'approve', codes: PERM.APPROVE_REQUISITIONS },
       { to: '/almacen', label: 'Almacén', icon: 'warehouse', codes: PERM.VIEW_INVENTORY },
+      { to: '/vales', label: 'Vales de almacén', icon: 'requisitions', codes: PERM.VIEW_VOUCHERS },
+      { to: '/semaforo', label: 'Semáforo SLA', icon: 'clock', codes: PERM.VIEW_SLA },
       { to: '/compras', label: 'Compras', icon: 'purchases', codes: PERM.VIEW_PURCHASES },
     ],
   },
@@ -42,6 +44,7 @@ const navGroups: { label: string; items: NavItem[] }[] = [
     label: 'Trazabilidad',
     items: [
       { to: '/historial', label: 'Historial', icon: 'history', codes: PERM.VIEW_HISTORY },
+      { to: '/trazabilidad', label: 'Cadena documental', icon: 'chart', codes: PERM.VIEW_TRACE },
       { to: '/auditoria', label: 'Auditoría', icon: 'audit', codes: PERM.VIEW_AUDIT },
     ],
   },

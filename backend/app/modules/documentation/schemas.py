@@ -5,7 +5,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class VoucherLineIn(BaseModel):
@@ -29,6 +29,22 @@ class VoucherCreate(BaseModel):
     issue_date: date | None = None
     lines: list[VoucherLineIn] | None = None
     idempotency_key: str | None = Field(default=None, max_length=160)
+
+
+class VoucherSignatureIn(BaseModel):
+    """Nombres de quienes intervienen. No se captura ni se falsifica una firma gráfica."""
+
+    received_by_name: str | None = Field(default=None, min_length=2, max_length=120)
+    authorized_by_name: str | None = Field(default=None, min_length=2, max_length=120)
+    dispatched_by_name: str | None = Field(default=None, min_length=2, max_length=120)
+
+    @model_validator(mode="after")
+    def _al_menos_un_nombre(self) -> "VoucherSignatureIn":
+        if not any(
+            (self.received_by_name, self.authorized_by_name, self.dispatched_by_name)
+        ):
+            raise ValueError("Capture al menos un nombre.")
+        return self
 
 
 class VoucherLineOut(BaseModel):
@@ -63,6 +79,10 @@ class VoucherOut(BaseModel):
     template_version: int
     issued_at: datetime | None
     created_at: datetime
+    received_by_name: str | None = None
+    authorized_by_name: str | None = None
+    dispatched_by_name: str | None = None
+    signatures_recorded_at: datetime | None = None
     lines: list[VoucherLineOut] = []
 
 

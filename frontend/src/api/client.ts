@@ -15,10 +15,17 @@ import type {
   RequisitionDraftUpdatePayload,
   RequisitionFilters,
   RequisitionPayload,
+  RequisitionTrace,
+  RenderRecord,
   Role,
   Session,
   SlaEvaluation,
+  SlaFilters,
+  SlaRequisition,
   StockMovement,
+  Voucher,
+  VoucherCreatePayload,
+  VoucherSignaturePayload,
   User,
   UserCreatePayload,
   UserCreated,
@@ -87,6 +94,15 @@ export function describeApiError(cause: unknown, fallback: string): string {
     default:
       return cause.message || fallback;
   }
+}
+
+function queryString<T extends object>(filters: T): string {
+  const params = new URLSearchParams();
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') params.set(key, String(value));
+  });
+  const query = params.toString();
+  return query ? `?${query}` : '';
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -282,6 +298,41 @@ export const api = {
     }),
   audit: (limit = 100, action?: string) =>
     request<AuditEntry[]>(`/api/v1/audit?limit=${limit}${action ? `&action=${encodeURIComponent(action)}` : ''}`),
+
+  // --- Documentos oficiales, vales y semáforo (Lote 5) --------------------
+  vouchers: (
+    filters: {
+      status?: string;
+      department_id?: string;
+      requisition_id?: string;
+      document_no?: string;
+    } = {},
+  ) => request<Voucher[]>(`/api/v1/documents/vouchers${queryString(filters)}`),
+  createVoucher: (payload: VoucherCreatePayload) =>
+    request<Voucher>('/api/v1/documents/vouchers', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  issueVoucher: (id: string) =>
+    request<Voucher>(`/api/v1/documents/vouchers/${id}/issue`, { method: 'POST' }),
+  signVoucher: (id: string, payload: VoucherSignaturePayload) =>
+    request<Voucher>(`/api/v1/documents/vouchers/${id}/signatures`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  documentRenders: (kind: 'vouchers' | 'requisitions', id: string) =>
+    request<RenderRecord[]>(`/api/v1/documents/${kind}/${id}/renders`),
+  documentUrl: (
+    kind: 'vouchers' | 'requisitions',
+    id: string,
+    format: 'PDF' | 'XLSX',
+    reprint = false,
+  ) =>
+    `${API_URL}/api/v1/documents/${kind}/${id}/${format.toLowerCase()}${reprint ? '?reprint=true' : ''}`,
+  slaRequisitions: (filters: SlaFilters = {}) =>
+    request<SlaRequisition[]>(`/api/v1/sla/requisitions${queryString(filters)}`),
+  requisitionTrace: (id: string) =>
+    request<RequisitionTrace>(`/api/v1/requisitions/${id}/trace`),
 
   // --- WMS · Lote A -----------------------------------------------------
   wmsFamilies: () => request<ItemFamily[]>('/api/v1/wms/families'),

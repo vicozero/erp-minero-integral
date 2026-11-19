@@ -18,6 +18,11 @@ export const PERM = {
   VIEW_LOCATIONS: ['warehouse.location.view', 'ubicaciones.consultar'],
   MANAGE_LOCATIONS: ['warehouse.location.manage', 'ubicaciones.administrar'],
   MANAGE_MAPS: ['warehouse.map.manage', 'mapas.almacen.administrar'],
+  VIEW_VOUCHERS: ['document.render', 'documentos.generar'],
+  CREATE_VOUCHERS: ['warehouse.voucher.create', 'vales.crear'],
+  ISSUE_VOUCHERS: ['warehouse.voucher.issue', 'vales.emitir'],
+  VIEW_SLA: ['sla.view', 'semaforo.consultar'],
+  VIEW_TRACE: ['requisition.history.view', 'requisiciones.historial'],
 } as const;
 
 export function can(user: User | null, ...codes: readonly string[]): boolean {

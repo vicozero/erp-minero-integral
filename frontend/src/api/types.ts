@@ -166,6 +166,142 @@ export interface RequisitionAttachment {
   created_at: string;
 }
 
+/** Vale de almacén derivado de entregas; nunca genera movimientos al imprimirse. */
+export interface VoucherLine {
+  id: string;
+  line_no: number;
+  requisition_line_id: string | null;
+  stock_movement_id: string | null;
+  item_id: string | null;
+  item_code: string;
+  uom_code: string;
+  description: string;
+  requested_qty: string;
+  dispatched_qty: string;
+}
+
+export interface Voucher {
+  id: string;
+  document_no: string;
+  department_id: string;
+  warehouse_id: string | null;
+  source_requisition_id: string | null;
+  cost_center_code: string | null;
+  area: string | null;
+  usage_equipment: string | null;
+  issue_date: string;
+  status: 'DRAFT' | 'ISSUED';
+  template_code: string;
+  template_version: number;
+  issued_at: string | null;
+  created_at: string;
+  received_by_name: string | null;
+  authorized_by_name: string | null;
+  dispatched_by_name: string | null;
+  signatures_recorded_at: string | null;
+  lines: VoucherLine[];
+}
+
+export interface VoucherCreatePayload {
+  department_id: string;
+  warehouse_id?: string | null;
+  requisition_id?: string | null;
+  mode?: 'DRAFT' | 'DELIVERY';
+  cost_center_code?: string | null;
+  area?: string | null;
+  usage_equipment?: string | null;
+  issue_date?: string | null;
+  lines?: Array<{
+    item_id?: string | null;
+    item_code: string;
+    uom_code: string;
+    description: string;
+    requested_qty: string;
+    dispatched_qty?: string;
+  }>;
+  idempotency_key?: string | null;
+}
+
+export interface VoucherSignaturePayload {
+  received_by_name?: string | null;
+  authorized_by_name?: string | null;
+  dispatched_by_name?: string | null;
+}
+
+export interface RenderRecord {
+  id: string;
+  document_no: string;
+  document_format: 'PDF' | 'XLSX';
+  sha256: string;
+  size_bytes: number;
+  is_reprint: boolean;
+  rendered_at: string;
+  source_render_id: string | null;
+}
+
+/** Fila del tablero SLA; el color es calculado y no es un estado administrativo. */
+export interface SlaRequisition {
+  id: string;
+  document_no: string;
+  department_id: string;
+  equipment_id: string | null;
+  requester_id: string | null;
+  department_name: string | null;
+  department_code: string | null;
+  equipment: string | null;
+  responsible: string | null;
+  status: string;
+  administrative_status: string;
+  priority: string;
+  requisition_type: string;
+  submitted_at: string | null;
+  needed_at: string | null;
+  pending_days: string | null;
+  fulfillment_percent: string;
+  sla: SlaResult;
+}
+
+export interface SlaFilters {
+  sla_color?: SlaColor;
+  status?: string;
+  priority?: string;
+  department_id?: string;
+  equipment_id?: string;
+  requester_id?: string;
+  date_from?: string;
+  date_to?: string;
+}
+
+export interface TraceStage {
+  stage: string;
+  label: string;
+  completed: boolean;
+  document_no: string | null;
+  occurred_at: string | null;
+  detail: string | null;
+}
+
+export interface RequisitionTrace {
+  requisition_id: string;
+  document_no: string;
+  administrative_status: string;
+  tracking: {
+    sla: SlaResult | null;
+    administrative_status: string | null;
+    pending_days: string | null;
+    fulfillment_percent: string;
+    needed_at: string | null;
+  };
+  stages: TraceStage[];
+  approvals: Array<Record<string, unknown> & { decision?: string; decided_by?: string | null }>;
+  reservations: Array<Record<string, unknown> & { reservation_no?: string; quantity?: string }>;
+  deliveries: Array<Record<string, unknown> & { movement_no?: string; quantity?: string }>;
+  vouchers: Array<Record<string, unknown> & { document_no?: string; status?: string }>;
+  document_events: Array<Record<string, unknown> & { event_type?: string }>;
+  audit_events: Array<Record<string, unknown> & { action?: string }>;
+  generated_at: string;
+}
+
 export interface RequisitionFilters {
   status?: string;
   sla_color?: SlaColor;

@@ -787,6 +787,23 @@ export function Requisitions() {
                           <button className="button button-small button-ghost" type="button" onClick={() => void handleSlaHistory(req)}>
                             Historial SLA
                           </button>
+                          <a
+                            className="button button-small button-ghost"
+                            href={api.documentUrl('requisitions', req.id, 'PDF')}
+                            target="_blank"
+                            rel="noreferrer"
+                            data-testid={`requisicion-pdf-${req.id}`}
+                          >
+                            PDF
+                          </a>
+                          <a
+                            className="button button-small button-ghost"
+                            href={api.documentUrl('requisitions', req.id, 'XLSX')}
+                            rel="noreferrer"
+                            data-testid={`requisicion-xlsx-${req.id}`}
+                          >
+                            Excel
+                          </a>
                         </td>
                       </tr>
                     ))}

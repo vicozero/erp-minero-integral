@@ -1,6 +1,8 @@
 # Resultados — Módulo documental (Lote 1, parcial)
 
-Fecha: 19/11/2026. Estado: **formatos implementados, probados localmente y aprobados visualmente por el usuario**. El Lote 1 completó la fase de PDF/XLSX; el semáforo SLA quedó implementado en el Lote 2 (`docs/RESULTADOS_SEMAFORO_SLA.md`) y el almacén virtual sigue pendiente.
+Fecha: 19/11/2026. Estado: **formatos implementados, probados localmente y aprobados visualmente por el usuario**. El Lote 1 completó la fase de PDF/XLSX; el semáforo SLA quedó implementado en el Lote 2 (`docs/RESULTADOS_SEMAFORO_SLA.md`) y el almacén virtual quedó cubierto en lotes posteriores.
+
+> **Actualización Lote 5:** la captura nominal de firmas, el proveedor recomendado y la validación final en portal están documentados en `docs/RESULTADOS_LOTE5_DOCUMENTOS.md` y `docs/VALIDACION_FORMATOS_PDF_EXCEL.md`.
 
 ## Decisiones registradas
 

@@ -42,6 +42,7 @@ No se permite emitir un vale de entrega sin entregas confirmadas. Un vale DRAFT 
 | `GET` | `/api/v1/documents/vouchers` | `document.render` |
 | `GET` | `/api/v1/documents/vouchers/{id}` | `document.render` |
 | `POST` | `/api/v1/documents/vouchers/{id}/issue` | `warehouse.voucher.issue` |
+| `POST` | `/api/v1/documents/vouchers/{id}/signatures` | `warehouse.voucher.issue` |
 | `GET` | `/api/v1/documents/vouchers/{id}/pdf?reprint=` | `document.render` |
 | `GET` | `/api/v1/documents/vouchers/{id}/xlsx?reprint=` | `document.render` |
 | `GET` | `/api/v1/documents/vouchers/{id}/renders` | `document.render` |
@@ -54,7 +55,8 @@ Ver `docs/EVIDENCIA_FORMATOS/`: PDF/XLSX sintéticos, PNG de las dos primeras p�
 
 ## Limitaciones
 
-- Las firmas se imprimen vacías (`NOMBRE Y FIRMA`): no se inventan nombres ni firmas.
-- `CECO`, `área` y `uso/equipo` se toman de los datos de la requisición o del vale; si no se capturan, se imprimen vacíos.
+- Solo se capturan **nombres** de recepción, autorización y despacho. Bajo cada nombre se imprime `NOMBRE Y FIRMA`; no se dibuja ni falsifica una firma gráfica.
+- La reimpresión conserva los bytes del último original. Para reflejar nombres capturados después de la última impresión se requiere una descarga fresca (`reprint=false`), que genera un nuevo `DocumentRender`.
+- `CECO`, `área` y `uso/equipo` se toman de los datos de la requisición o del vale; si no se capturan, se imprimen vacíos. En el PDF autorizado, `área` se limita a 12 caracteres; el XLSX conserva el texto completo.
 - La numeración inicia en 166 por decisión del usuario; no se migra ni se reedita el folio 162/165 histórico.
 - El archivo se sirve por endpoint autorizado; no existe descarga por ruta filesystem.

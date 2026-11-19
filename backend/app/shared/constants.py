@@ -192,6 +192,12 @@ PERMISSION_ALIASES: dict[str, str] = {
     "salidas.crear": "wms.issue.create",
     "devoluciones.crear": "wms.return.create",
     "reversos.crear": "wms.reversal.create",
+    "documentos.generar": "document.render",
+    "vales.crear": "warehouse.voucher.create",
+    "vales.emitir": "warehouse.voucher.issue",
+    "semaforo.consultar": "sla.view",
+    "semaforo.configurar": "sla.policy.configure",
+    "semaforo.aprobar": "sla.policy.approve",
 }
 
 

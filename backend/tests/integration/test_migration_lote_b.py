@@ -20,9 +20,10 @@ from sqlalchemy.exc import IntegrityError
 
 NULL_UUID = "00000000-0000-0000-0000-000000000000"
 REVISION_B1 = "b7c8d9e0f1a3"
-# Revisiones posteriores legítimas: el módulo documental, el semáforo SLA y el
-# almacén virtual son aditivos y no invalidan las garantías del Lote B.1.
-REVISIONES_POSTERIORES = {"c1d2e3f4a5b6", "d2e3f4a5b6c7", "e5f6a7b8c9d0"}
+# Revisiones posteriores legítimas: el módulo documental, el semáforo SLA, el
+# almacén virtual y las firmas nominales del Lote 5 son aditivos y no invalidan
+# las garantías del Lote B.1.
+REVISIONES_POSTERIORES = {"c1d2e3f4a5b6", "d2e3f4a5b6c7", "e5f6a7b8c9d0", "f7a8b9c0d1e2"}
 
 
 def _fetch_original(conn: object) -> dict[str, object]:

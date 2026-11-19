@@ -2,6 +2,8 @@
 
 Fecha: 19/11/2026. Estado: **backend y frontend implementados y probados localmente**. Contrato detallado en `docs/SLA_SEMAFORO.md`.
 
+> **Actualización Lote 5:** el tablero operativo con filtros, columnas de equipo/responsable y trazabilidad asociada está documentado en `docs/SEMAFORO_REQUISICIONES.md`.
+
 ## Decisiones aprobadas
 
 | Tema | Decisión |

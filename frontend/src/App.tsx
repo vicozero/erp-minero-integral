@@ -15,6 +15,9 @@ import { History } from './features/history/History';
 import { Inventory } from './features/inventory/Inventory';
 import { Purchases } from './features/purchases/Purchases';
 import { Requisitions } from './features/requisitions/Requisitions';
+import { SlaBoard } from './features/sla/SlaBoard';
+import { Traceability } from './features/trace/Traceability';
+import { Vouchers } from './features/vouchers/Vouchers';
 import { Locations } from './features/wms/Locations';
 import { MyAccount } from './features/security/MyAccount';
 import { Permissions, Roles } from './features/security/RolesAndPermissions';
@@ -67,6 +70,22 @@ export default function App() {
             <Route
               path="ubicaciones"
               element={<RequirePermission codes={PERM.VIEW_LOCATIONS}><Locations /></RequirePermission>}
+            />
+            <Route
+              path="vales"
+              element={<RequirePermission codes={PERM.VIEW_VOUCHERS}><Vouchers /></RequirePermission>}
+            />
+            <Route
+              path="semaforo"
+              element={<RequirePermission codes={PERM.VIEW_SLA}><SlaBoard /></RequirePermission>}
+            />
+            <Route
+              path="trazabilidad"
+              element={<RequirePermission codes={PERM.VIEW_TRACE}><Traceability /></RequirePermission>}
+            />
+            <Route
+              path="trazabilidad/:requisitionId"
+              element={<RequirePermission codes={PERM.VIEW_TRACE}><Traceability /></RequirePermission>}
             />
             <Route
               path="historial"

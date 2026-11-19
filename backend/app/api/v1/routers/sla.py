@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
@@ -73,6 +74,10 @@ def list_requisitions(
     status_filter: str | None = Query(default=None, alias="status"),
     priority: str | None = None,
     department_id: uuid.UUID | None = None,
+    equipment_id: uuid.UUID | None = None,
+    requester_id: uuid.UUID | None = None,
+    date_from: datetime | None = None,
+    date_to: datetime | None = None,
     db: Session = Depends(get_db),
     actor: AppUser = Depends(require_permission("sla.view")),
 ) -> list[dict]:
@@ -83,6 +88,10 @@ def list_requisitions(
         status_filter=status_filter,
         priority=priority,
         department_id=department_id,
+        equipment_id=equipment_id,
+        requester_id=requester_id,
+        date_from=date_from,
+        date_to=date_to,
     )
 
 

@@ -219,6 +219,14 @@ class WarehouseVoucher(AuditMixin, Base):
     issued_by: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("seg.app_user.id", ondelete="RESTRICT"), nullable=True
     )
+    # Constancia nominal: nunca se almacena ni se dibuja una grafía de firma.
+    received_by_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    authorized_by_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    dispatched_by_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    signatures_recorded_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    signatures_recorded_by: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("seg.app_user.id", ondelete="RESTRICT"), nullable=True
+    )
 
     lines: Mapped[list["WarehouseVoucherLine"]] = relationship(
         back_populates="voucher", order_by="WarehouseVoucherLine.line_no"

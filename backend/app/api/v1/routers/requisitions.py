@@ -19,6 +19,7 @@ from app.modules.requisitions.schemas import (
     RequisitionCreate,
     RequisitionDraftUpdate,
     RequisitionOut,
+    RequisitionTraceOut,
 )
 from app.modules.requisitions.service import RequisitionService as Service
 
@@ -146,6 +147,16 @@ def history(
         raise HTTPException(status_code=404, detail="Requisición inexistente.")
     IdentityService.assert_department_access(db, actor.id, req.department_id)
     return Service.history(db, requisition_id)
+
+
+@router.get("/{requisition_id}/trace", response_model=RequisitionTraceOut)
+def trace(
+    requisition_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    actor: AppUser = Depends(require_permission("requisition.history.view")),
+) -> dict:
+    """Cadena Requisición → Autorización → Reserva → Entrega → Vale → Seguimiento."""
+    return Service.trace(db, actor.id, requisition_id)
 
 
 @router.post(

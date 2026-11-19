@@ -1,0 +1,15 @@
+{
+  "voucher": "VA-000166",
+  "files": [
+    {
+      "path": "E:\\ERP_MINERO\\docs\\evidencia\\ejemplos\\VA-000166.pdf",
+      "type": "application/pdf",
+      "size": 53611
+    },
+    {
+      "path": "E:\\ERP_MINERO\\docs\\evidencia\\ejemplos\\VA-000166.xlsx",
+      "type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "size": 48185
+    }
+  ]
+}

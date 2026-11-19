@@ -9,7 +9,12 @@ from sqlalchemy.orm import Session
 from app.api.v1.deps import require_permission
 from app.db.session import get_db
 from app.modules.documentation.models import DocumentRender, WarehouseVoucher
-from app.modules.documentation.schemas import RenderOut, VoucherCreate, VoucherOut
+from app.modules.documentation.schemas import (
+    RenderOut,
+    VoucherCreate,
+    VoucherOut,
+    VoucherSignatureIn,
+)
 from app.modules.documentation.service import DocumentationService as Service
 from app.modules.identity.models import AppUser
 from app.modules.identity.service import IdentityService
@@ -92,6 +97,19 @@ def issue_voucher(
     actor: AppUser = Depends(require_permission("warehouse.voucher.issue")),
 ) -> dict:
     voucher = Service.issue_voucher(db, actor.id, voucher_id)
+    db.commit()
+    db.refresh(voucher)
+    return Service.to_out(voucher)
+
+
+@router.post("/vouchers/{voucher_id}/signatures", response_model=VoucherOut)
+def record_voucher_signatures(
+    voucher_id: uuid.UUID,
+    payload: VoucherSignatureIn,
+    db: Session = Depends(get_db),
+    actor: AppUser = Depends(require_permission("warehouse.voucher.issue")),
+) -> dict:
+    voucher = Service.record_signatures(db, actor.id, voucher_id, payload)
     db.commit()
     db.refresh(voucher)
     return Service.to_out(voucher)

@@ -35,6 +35,9 @@ class VAData:
     uso_equipo: str
     fecha_expedicion: str
     lines: list[VALine]
+    recibido_por: str = ""
+    autorizado_por: str = ""
+    despachado_por: str = ""
 
 
 def _fmt_qty(value: Decimal | str | None) -> str:
@@ -150,7 +153,12 @@ def _draw_page(c: canvas.Canvas, data: VAData, page_lines: list[VALine], page: i
     c.drawCentredString(133, _y(468), "RECIBIDO POR:")
     c.drawCentredString(391.5, _y(468), "AUTORIZADO POR:")
     c.drawCentredString(647, _y(468), "DESPACHADO POR ALMACÉN:")
+    # Solo se imprime el nombre declarado por el usuario; nunca se dibuja una
+    # grafía que pretenda ser una firma autógrafa.
     c.setFont("Helvetica", 7)
+    c.drawCentredString(133, _y(497), (data.recibido_por or "")[:38])
+    c.drawCentredString(391.5, _y(497), (data.autorizado_por or "")[:38])
+    c.drawCentredString(647, _y(497), (data.despachado_por or "")[:38])
     c.drawCentredString(133, _y(514), "NOMBRE Y FIRMA")
     c.drawCentredString(391.5, _y(514), "NOMBRE Y FIRMA")
     c.drawCentredString(647, _y(514), "NOMBRE Y FIRMA")
@@ -289,6 +297,15 @@ def render_va_xlsx(data: VAData) -> bytes:
         ws["G21"] = "DESPACHADO POR ALMACÉN:"
         ws["G21"].font = Font(bold=True, size=9)
         ws.row_dimensions[23].height = 28
+        ws.merge_cells("A23:C23")
+        ws["A23"] = data.recibido_por or ""
+        ws.merge_cells("D23:F23")
+        ws["D23"] = data.autorizado_por or ""
+        ws.merge_cells("G23:H23")
+        ws["G23"] = data.despachado_por or ""
+        for cell_ref in ("A23", "D23", "G23"):
+            ws[cell_ref].alignment = Alignment(horizontal="center")
+            ws[cell_ref].font = Font(size=9)
         ws.merge_cells("A24:C24")
         ws["A24"] = "NOMBRE Y FIRMA"
         ws.merge_cells("D24:F24")

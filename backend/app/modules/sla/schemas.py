@@ -107,9 +107,18 @@ class SlaRequisitionOut(BaseModel):
     id: uuid.UUID
     document_no: str
     department_id: uuid.UUID
+    equipment_id: uuid.UUID | None = None
+    requester_id: uuid.UUID | None = None
     status: str
     priority: str
     requisition_type: str
     submitted_at: datetime | None
     needed_at: datetime | None
     sla: SlaResult
+    department_name: str | None = None
+    department_code: str | None = None
+    equipment: str | None = None
+    responsible: str | None = None
+    administrative_status: str | None = None
+    pending_days: Decimal | None = None
+    fulfillment_percent: Decimal = Decimal("0.00")

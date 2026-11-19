@@ -1,0 +1,15 @@
+{
+  "requisition_id": "0048b504-d1df-4b9e-9ccc-0e5a17b88ecf",
+  "files": [
+    {
+      "path": "E:\\ERP_MINERO\\docs\\evidencia\\ejemplos\\REQ-LAG-2026-000003.pdf",
+      "type": "application/pdf",
+      "size": 70060
+    },
+    {
+      "path": "E:\\ERP_MINERO\\docs\\evidencia\\ejemplos\\REQ-LAG-2026-000003.xlsx",
+      "type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "size": 15001
+    }
+  ]
+}

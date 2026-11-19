@@ -261,4 +261,16 @@ describe('Mejora de requisiciones', () => {
       expect.objectContaining({ sla_color: 'RED' }),
     ));
   });
+
+  it('ofrece descargas PDF y Excel sin llamadas fetch en el componente', async () => {
+    mockApi('APPROVED');
+    render(<Requisitions />);
+    await screen.findAllByText('REQ-LAG-2026-000001');
+
+    const pdf = screen.getByTestId('requisicion-pdf-req-1');
+    const xlsx = screen.getByTestId('requisicion-xlsx-req-1');
+    expect(pdf.getAttribute('href')).toContain('/api/v1/documents/requisitions/req-1/pdf');
+    expect(xlsx.getAttribute('href')).toContain('/api/v1/documents/requisitions/req-1/xlsx');
+    expect(pdf.getAttribute('target')).toBe('_blank');
+  });
 });

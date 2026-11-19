@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -117,3 +117,29 @@ class RequisitionAttachmentOut(BaseModel):
     size_bytes: int
     sha256: str
     created_at: datetime
+
+
+class TraceStageOut(BaseModel):
+    stage: str
+    label: str
+    completed: bool
+    document_no: str | None = None
+    occurred_at: datetime | None = None
+    detail: str | None = None
+
+
+class RequisitionTraceOut(BaseModel):
+    """Cadena documental de solo lectura: no dispara movimientos de inventario."""
+
+    requisition_id: uuid.UUID
+    document_no: str
+    administrative_status: str
+    tracking: dict[str, Any]
+    stages: list[TraceStageOut]
+    approvals: list[dict[str, Any]]
+    reservations: list[dict[str, Any]]
+    deliveries: list[dict[str, Any]]
+    vouchers: list[dict[str, Any]]
+    document_events: list[dict[str, Any]]
+    audit_events: list[dict[str, Any]]
+    generated_at: datetime

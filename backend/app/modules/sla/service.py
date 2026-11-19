@@ -6,13 +6,16 @@ from decimal import Decimal, ROUND_HALF_UP
 from typing import Literal, NoReturn
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.modules.audit.service import AuditService
+from app.modules.identity.models import AppUser
 from app.modules.identity.service import IdentityService
+from app.modules.inventory.models import StockMovement
+from app.modules.maintenance.models import Equipment
 from app.modules.organization.models import Department
-from app.modules.requisitions.models import Requisition
+from app.modules.requisitions.models import Requisition, RequisitionLine
 from app.modules.sla.models import RequisitionSlaEvent, SlaPolicy
 from app.shared.constants import SLA_TERMINAL_STATUSES
 from app.shared.events import emit
@@ -207,17 +210,68 @@ class SlaService:
         ]
 
     @staticmethod
+    def _fulfillment_percent(db: Session, req: Requisition) -> Decimal:
+        lines = list(
+            db.execute(
+                select(RequisitionLine).where(RequisitionLine.requisition_id == req.id)
+            ).scalars()
+        )
+        authorised = sum((line.authorised_qty for line in lines), Decimal("0"))
+        if authorised <= 0 or not lines:
+            return Decimal("0.00")
+        delivered = db.execute(
+            select(func.coalesce(func.sum(StockMovement.quantity), 0)).where(
+                StockMovement.requisition_line_id.in_([line.id for line in lines]),
+                StockMovement.movement_type == "ISSUE",
+                StockMovement.status == "POSTED",
+            )
+        ).scalar_one()
+        percent = Decimal(str(delivered)) / authorised * Decimal("100")
+        return percent.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+    @staticmethod
+    def _pending_days(req: Requisition, result: dict) -> Decimal | None:
+        target = req.needed_at
+        if target is None and result.get("measured"):
+            target = result.get("green_deadline")
+        if target is None:
+            return None
+        remaining = max((target - _now()).total_seconds(), 0) / 86400
+        return Decimal(str(remaining)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+    @staticmethod
     def _requisition_out(db: Session, req: Requisition) -> dict:
+        result = SlaService.evaluate(db, req)
+        department = db.get(Department, req.department_id)
+        equipment = db.get(Equipment, req.equipment_id) if req.equipment_id else None
+        requester = db.get(AppUser, req.requester_id) if req.requester_id else None
+        responsible = requester.full_name if requester else None
+        equipment_label = None
+        if equipment is not None:
+            equipment_label = " ".join(
+                part for part in (equipment.asset_tag, equipment.description) if part
+            )
+        if not equipment_label:
+            equipment_label = req.work_order_no
         return {
             "id": req.id,
             "document_no": req.document_no,
             "department_id": req.department_id,
+            "equipment_id": req.equipment_id,
+            "requester_id": req.requester_id,
+            "department_name": department.name if department else None,
+            "department_code": department.code if department else None,
+            "equipment": equipment_label or None,
+            "responsible": responsible or (requester.username if requester else None),
             "status": req.status,
+            "administrative_status": req.status,
             "priority": req.priority,
             "requisition_type": req.requisition_type,
             "submitted_at": req.submitted_at,
             "needed_at": req.needed_at,
-            "sla": SlaService.evaluate(db, req),
+            "pending_days": SlaService._pending_days(req, result),
+            "fulfillment_percent": SlaService._fulfillment_percent(db, req),
+            "sla": result,
         }
 
     @staticmethod
@@ -229,6 +283,10 @@ class SlaService:
         status_filter: str | None = None,
         priority: str | None = None,
         department_id: uuid.UUID | None = None,
+        equipment_id: uuid.UUID | None = None,
+        requester_id: uuid.UUID | None = None,
+        date_from: datetime | None = None,
+        date_to: datetime | None = None,
     ) -> list[dict]:
         stmt = select(Requisition)
         if not IdentityService.is_admin(db, actor_id):
@@ -239,6 +297,14 @@ class SlaService:
             stmt = stmt.where(Requisition.priority == priority)
         if department_id is not None:
             stmt = stmt.where(Requisition.department_id == department_id)
+        if equipment_id is not None:
+            stmt = stmt.where(Requisition.equipment_id == equipment_id)
+        if requester_id is not None:
+            stmt = stmt.where(Requisition.requester_id == requester_id)
+        if date_from is not None:
+            stmt = stmt.where(Requisition.created_at >= date_from)
+        if date_to is not None:
+            stmt = stmt.where(Requisition.created_at <= date_to)
         rows = db.execute(stmt.order_by(Requisition.created_at.desc())).scalars()
         result = [SlaService._requisition_out(db, req) for req in rows]
         if color:

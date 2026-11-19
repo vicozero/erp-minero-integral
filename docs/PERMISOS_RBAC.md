@@ -1,6 +1,6 @@
-# Catálogo de permisos y matriz RBAC — Fase 3
+# Catálogo de permisos y matriz RBAC
 
-**Fecha:** 2026-11-18
+**Fecha:** 2026-11-19 (actualizado en Lote 5)
 **Fuente de verdad:** `backend/app/shared/constants.py` (`PERMISSIONS`, `PERMISSION_ALIASES`, `ROLE_PERMISSIONS`).
 **Principio:** denegación por defecto. El backend comprueba permisos en cada petición; el frontend solo oculta menús y no constituye una barrera de seguridad.
 
@@ -8,11 +8,11 @@
 
 ## 1. Cómo funcionan los códigos
 
-El proyecto conserva los 15 códigos de la Fase 2 (inglés) para no romper contratos existentes y agrega 19 alias en español, de los cuales 11 son los exigidos para la Fase 3. Los alias se resuelven al código canónico mediante `canonical_permission()`, de modo que una política escrita con `almacenes.surtir` y otra con `inventory.issue` se comprueban como la misma autorización.
+El proyecto conserva los 15 códigos de la Fase 2 (inglés) para no romper contratos existentes y agrega alias en español. Los alias se resuelven al código canónico mediante `canonical_permission()`, de modo que una política escrita con `almacenes.surtir` y otra con `inventory.issue` se comprueban como la misma autorización.
 
-Además existen 6 códigos canónicos internos (`requisition.view_own`, `requisition.view_department`, `user.view`, `role.assign`, `department.view`, `session.view`) que no tenían equivalente heredado.
+Además existen códigos canónicos internos (`requisition.view_own`, `requisition.view_department`, `user.view`, `role.assign`, `department.view`, `session.view`) que no tenían equivalente heredado, y los bloques incorporados en WMS, módulo documental, semáforo SLA, almacén virtual y Lote 4.
 
-**Total: 40 códigos** = 15 heredados + 19 alias en español + 6 canónicos internos.
+**Total actual: 78 códigos canónicos y 46 alias**, según `backend/app/shared/constants.py`.
 
 ## 2. Los 11 permisos exigidos
 
@@ -59,6 +59,12 @@ Además existen 6 códigos canónicos internos (`requisition.view_own`, `requisi
 | `departamentos.consultar` | `department.view` |
 | `sesiones.consultar` | `session.view` |
 | `auditoria.consultar` | `audit.view` |
+| `documentos.generar` | `document.render` |
+| `vales.crear` | `warehouse.voucher.create` |
+| `vales.emitir` | `warehouse.voucher.issue` |
+| `semaforo.consultar` | `sla.view` |
+| `semaforo.configurar` | `sla.policy.configure` |
+| `semaforo.aprobar` | `sla.policy.approve` |
 
 ## 4. Roles y matriz de permisos
 
@@ -150,3 +156,23 @@ En la semilla sintética, `demo.solicitante`, `demo.aprobador`, `demo.almacenist
 3. Agregar la prueba correspondiente en `backend/tests/test_phase3_auth_rbac.py`.
 4. Ejecutar `pytest -q`, `ruff check .` y `mypy app`.
 5. Actualizar este documento.
+
+## 9. Permisos incorporados en el Lote 5
+
+| Código canónico | Alias en español | Endpoint principal | Roles con acceso directo |
+|---|---|---|---|
+| `document.render` | `documentos.generar` | `GET /api/v1/documents/requisitions/{id}/pdf`, `GET /api/v1/documents/vouchers/{id}/pdf` | ADMIN, SUPERADMIN, SOLICITANTE, JEFE_DEPARTAMENTO, ALMACÉN, COMPRAS, GERENCIA, AUDITOR |
+| `warehouse.voucher.create` | `vales.crear` | `POST /api/v1/documents/vouchers` | ADMIN, SUPERADMIN, ALMACÉN |
+| `warehouse.voucher.issue` | `vales.emitir` | `POST /api/v1/documents/vouchers/{id}/issue`, `POST /api/v1/documents/vouchers/{id}/signatures` | ADMIN, SUPERADMIN, ALMACÉN |
+| `sla.view` | `semaforo.consultar` | `GET /api/v1/sla/requisitions` | ADMIN, SUPERADMIN y todos los roles operativos/de lectura |
+| `sla.policy.configure` | `semaforo.configurar` | servicios/migración de políticas SLA | ADMIN, SUPERADMIN |
+| `sla.policy.approve` | `semaforo.aprobar` | aprobación de emergencia 4/8 h | ADMIN, SUPERADMIN |
+| `requisition.history.view` | `requisiciones.historial` | `GET /api/v1/requisitions/{id}/trace` | ADMIN, SUPERADMIN y roles con historial |
+
+Notas del Lote 5:
+
+- El frontend usa `PERM.VIEW_VOUCHERS`, `PERM.VIEW_SLA` y `PERM.VIEW_TRACE` para mostrar menús y botones; la autoridad real la comprueba el backend en cada petición.
+- `GET /api/v1/requisitions/{id}/trace` requiere `requisition.history.view`; un perfil sin ese permiso recibe `403` aunque vea el folio en el tablero.
+- Las descargas y la reimpresión requieren `document.render` y aplican alcance por departamento.
+- La emisión de un vale y el registro de nombres requieren `warehouse.voucher.issue`; no basta con poder generarlo.
+- No se agregó ningún permiso nuevo en el Lote 5: los siete códigos canónicos de esta tabla ya existían y solo se documentaron sus alias y rutas.

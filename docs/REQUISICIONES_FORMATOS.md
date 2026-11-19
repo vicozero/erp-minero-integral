@@ -26,7 +26,8 @@ El generador está en `backend/app/modules/documentation/render_req.py`. No hay 
 - El folio, departamento, mina, fecha y partidas se toman de la requisición existente (módulo `req`); **no se crea un documento paralelo**.
 - `USO INMEDIATO` se marca cuando la prioridad es `HIGH` o `URGENT`; `EXISTENCIA ALMACEN` cuando el tipo es `STOCK`; `CARGO OPEX` cuando hay centro de costo. Son reglas de presentación del formato, no cambian el estado administrativo.
 - `CONSUMO MES/AÑO` se deriva de `needed_at`, porque hoy no existe una fuente de consumo histórico confiable. Si no hay fecha requerida, se imprime vacío.
-- `PROGRAMADO (ALMACEN)` y `PROVEEDOR RECOMENDADO` se imprimen vacíos mientras no exista una fuente de datos autorizada. No se inventan valores.
+- `PROVEEDOR RECOMENDADO` se deriva del proveedor preferido de `mdm.item_supplier` del primer artículo con proveedor conocido. Si no hay fuente, se imprime vacío; no se inventa un proveedor.
+- `PROGRAMADO (ALMACEN)` y `meses_programados` se imprimen vacíos mientras no exista una fuente de datos autorizada. No se inventan valores.
 - Las tres firmas quedan en blanco. Cuando la requisición tiene `approved_at`, se añade bajo autorización gerencial el texto `[Aprobación electrónica: ESTADO YYYY-MM-DD HH:MM]`. Esa marca es informativa y auditables: la decisión real vive en los eventos de aprobación y en la bitácora del flujo de autorización por partida.
 
 ## API

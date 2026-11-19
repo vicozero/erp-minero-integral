@@ -21,12 +21,13 @@ from app.modules.documentation.models import (
 )
 from app.modules.documentation.render_req import REQData, REQLine, render_req_pdf, render_req_xlsx
 from app.modules.documentation.render_va import VAData, VALine, render_va_pdf, render_va_xlsx
+from app.modules.documentation.schemas import VoucherSignatureIn
 from app.modules.documentation.templates import REQ_SPEC, VA_SPEC, ensure_template
 from app.modules.identity.service import IdentityService
 from app.modules.inventory.models import StockMovement
 from app.modules.inventory.service import InventoryService
 from app.modules.maintenance.models import Equipment
-from app.modules.master_data.models import Item, Uom
+from app.modules.master_data.models import Item, ItemSupplier, Supplier, Uom
 from app.modules.organization.models import Department, MiningUnit, Warehouse
 from app.modules.requisitions.models import Requisition, RequisitionLine
 from app.shared.events import emit
@@ -316,6 +317,66 @@ class DocumentationService:
         return voucher
 
     @staticmethod
+    def record_signatures(
+        db: Session,
+        actor_id: uuid.UUID,
+        voucher_id: uuid.UUID,
+        payload: VoucherSignatureIn,
+    ) -> WarehouseVoucher:
+        """Registra nombres declarados; no captura ni simula firmas gráficas."""
+        voucher = db.execute(
+            select(WarehouseVoucher).where(WarehouseVoucher.id == voucher_id).with_for_update()
+        ).scalar_one_or_none()
+        if voucher is None:
+            _fail("Vale inexistente.", status.HTTP_404_NOT_FOUND)
+        IdentityService.assert_department_access(db, actor_id, voucher.department_id)
+        fields = ("received_by_name", "authorized_by_name", "dispatched_by_name")
+        changed: dict[str, str] = {}
+        for field in fields:
+            value = getattr(payload, field)
+            if value is not None and value.strip():
+                changed[field] = value.strip()
+        if not changed:
+            _fail("Capture al menos un nombre de recepción, autorización o despacho.",
+                  status.HTTP_422_UNPROCESSABLE_ENTITY)
+        before = {field: getattr(voucher, field) for field in changed}
+        for field, value in changed.items():
+            setattr(voucher, field, value)
+        voucher.signatures_recorded_at = datetime.now(timezone.utc)
+        voucher.signatures_recorded_by = actor_id
+        voucher.updated_by = actor_id
+        voucher.version += 1
+        registry = db.get(DocumentRegistry, voucher.document_registry_id)
+        if registry is not None:
+            record_document_event(
+                db,
+                registry,
+                "VOUCHER_SIGNATURES_RECORDED",
+                voucher.status,
+                voucher.status,
+                actor_id,
+                {"fields": sorted(changed), "graphic_signature": False},
+            )
+        AuditService.record(
+            db,
+            action="VOUCHER_SIGNATURES_RECORDED",
+            entity_type="WarehouseVoucher",
+            entity_id=voucher.id,
+            actor_id=actor_id,
+            before=before,
+            after={"fields": sorted(changed), "graphic_signature": False},
+            detail="Constancia nominal; no se generó ninguna firma gráfica.",
+        )
+        emit(
+            db,
+            "WarehouseVoucher",
+            voucher.id,
+            "VOUCHER_SIGNATURES_RECORDED",
+            {"document_no": voucher.document_no, "fields": sorted(changed)},
+        )
+        return voucher
+
+    @staticmethod
     def to_out(voucher: WarehouseVoucher) -> dict:
         return {
             "id": voucher.id,
@@ -332,6 +393,10 @@ class DocumentationService:
             "template_version": voucher.template_version,
             "issued_at": voucher.issued_at,
             "created_at": voucher.created_at,
+            "received_by_name": voucher.received_by_name,
+            "authorized_by_name": voucher.authorized_by_name,
+            "dispatched_by_name": voucher.dispatched_by_name,
+            "signatures_recorded_at": voucher.signatures_recorded_at,
             "lines": [
                 {
                     "id": line.id,
@@ -362,6 +427,9 @@ class DocumentationService:
             area=voucher.area or "",
             uso_equipo=voucher.usage_equipment or "",
             fecha_expedicion=_date_text(voucher.issue_date),
+            recibido_por=voucher.received_by_name or "",
+            autorizado_por=voucher.authorized_by_name or "",
+            despachado_por=voucher.dispatched_by_name or "",
             lines=[
                 VALine(
                     partida=line.line_no,
@@ -374,6 +442,23 @@ class DocumentationService:
                 for line in sorted(voucher.lines, key=lambda item: item.line_no)
             ],
         )
+
+    @staticmethod
+    def _recommended_supplier(db: Session, requisition: Requisition) -> str:
+        """Proveedor preferido del catálogo; nunca se inventa si no hay fuente."""
+        for line in sorted(requisition.lines, key=lambda item: item.line_no):
+            if line.item_id is None:
+                continue
+            rows = db.execute(
+                select(Supplier.name)
+                .join(ItemSupplier, ItemSupplier.supplier_id == Supplier.id)
+                .where(ItemSupplier.item_id == line.item_id)
+                .order_by(ItemSupplier.preferred.desc(), Supplier.name)
+            ).scalars()
+            name = rows.first()
+            if name:
+                return name
+        return ""
 
     @staticmethod
     def _requisition_data(db: Session, requisition: Requisition) -> REQData:
@@ -424,7 +509,7 @@ class DocumentationService:
                 if equipment is not None
                 else (requisition.work_order_no or "")
             ),
-            proveedor_recomendado="",
+            proveedor_recomendado=DocumentationService._recommended_supplier(db, requisition),
             lines=lines,
             meses_requeridos=meses,
             meses_programados=[],

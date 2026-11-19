@@ -63,11 +63,34 @@ def test_migraciones_y_tipos_de_datos(engine) -> None:
             )
         ).scalar_one()
 
-    assert revision in {"d147e7ec92fb", "f3a9c1d7b2e4", "f4a7c1e2b3d6"}
+    assert revision in {"d147e7ec92fb", "f3a9c1d7b2e4", "f4a7c1e2b3d6", "a1b2c3d4e5f6"}
     assert {"seg", "org", "mdm", "doc", "req", "wfl", "inv", "pur", "mnt", "cost", "intg", "aud"} <= schemas
     assert domain_tables >= 37
     assert created_at_types == {"timestamp with time zone"}
     assert float_columns == 0
+
+    with engine.connect() as connection:
+        wms_tables = set(
+            connection.execute(
+                text(
+                    "SELECT tablename FROM pg_tables "
+                    "WHERE schemaname = 'mdm' AND tablename IN "
+                    "('item_family','item_uom_conversion','item_cross_reference',"
+                    "'item_supplier','storage_location','location_restriction','lot','serial')"
+                )
+            ).scalars()
+        )
+        assert len(wms_tables) == 8
+        new_columns = set(
+            connection.execute(
+                text(
+                    "SELECT column_name FROM information_schema.columns "
+                    "WHERE table_schema = 'inv' AND table_name = 'stock_balance' "
+                    "AND column_name IN ('lot_ref_id','location_ref_id')"
+                )
+            ).scalars()
+        )
+        assert new_columns == {"lot_ref_id", "location_ref_id"}
 
 
 def test_crud_ficticio_en_postgresql(db: Session) -> None:

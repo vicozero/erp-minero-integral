@@ -30,7 +30,7 @@ export function Panel({
   title: string;
   children: ReactNode;
   subtitle?: string;
-  icon?: 'box' | 'chart' | 'truck' | 'location' | 'requisitions' | 'warehouse' | 'history' | 'trend' | 'approve';
+  icon?: 'box' | 'chart' | 'truck' | 'location' | 'requisitions' | 'warehouse' | 'history' | 'trend' | 'approve' | 'search';
 }) {
   return (
     <section className="panel">

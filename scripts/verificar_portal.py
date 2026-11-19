@@ -134,6 +134,39 @@ def main() -> int:
     else:
         check("Cookies sin Secure en HTTP local", "Secure" not in raw_set_cookie)
 
+    status, _, body = request_json(opener, f"{base_url}/api/v1/wms/families")
+    families = json.loads(body) if status == 200 and body else []
+    check("WMS: familias de catálogo", status == 200 and len(families) >= 3, f"HTTP {status}")
+
+    status, _, body = request_json(
+        opener, f"{base_url}/api/v1/wms/items/search?query=TORNILLO"
+    )
+    items = json.loads(body) if status == 200 and body else []
+    tornillo = next((item for item in items if item.get("code") == "DEMO-TORNILLO"), None)
+    check(
+        "WMS: búsqueda avanzada con existencia",
+        status == 200 and tornillo is not None and float(tornillo["on_hand_qty"]) > 0,
+        f"HTTP {status}",
+    )
+
+    status, _, body = request_json(opener, f"{base_url}/api/v1/wms/locations")
+    locations = json.loads(body) if status == 200 and body else []
+    check("WMS: ubicaciones con ocupación", status == 200 and len(locations) >= 6, f"HTTP {status}")
+
+    if tornillo:
+        status, _, body = request_json(
+            opener, f"{base_url}/api/v1/wms/items/{tornillo['id']}"
+        )
+        detail = json.loads(body) if status == 200 and body else {}
+        check(
+            "WMS: ficha de material",
+            status == 200
+            and bool(detail.get("locations"))
+            and bool(detail.get("lots"))
+            and "movements" in detail,
+            f"HTTP {status}",
+        )
+
     status, _, _ = request_json(opener, f"{base_url}/api/v1/auth/logout", "POST")
     check("CSRF exigido en escrituras", status == 403, f"HTTP {status}")
 

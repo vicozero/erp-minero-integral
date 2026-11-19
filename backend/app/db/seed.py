@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
 from sqlalchemy import select
@@ -16,7 +16,18 @@ from app.modules.documentation.models import DocumentNumbering, DocumentType
 from app.modules.identity.models import AppUser, Permission, Role, RolePermission, UserDepartment, UserRole
 from app.modules.inventory.models import NULL_UUID, StockBalance, StockMovement
 from app.modules.maintenance.models import Equipment
-from app.modules.master_data.models import Item, Supplier, Uom
+from app.modules.master_data.models import (
+    Item,
+    ItemCrossReference,
+    ItemFamily,
+    ItemSupplier,
+    LocationRestriction,
+    Lot,
+    Serial,
+    StorageLocation,
+    Supplier,
+    Uom,
+)
 from app.modules.organization.models import Company, Department, MiningUnit, Warehouse
 from app.shared.constants import DOCUMENT_TYPES, ROLE_LABELS, ROLE_PERMISSIONS
 from app.shared.events import emit
@@ -86,6 +97,219 @@ def _ensure_user_role(db: Session, user_id: uuid.UUID, role_id: uuid.UUID) -> No
     if existing is None:
         db.add(UserRole(user_id=user_id, role_id=role_id, scope_type="GLOBAL"))
         db.flush()
+
+
+def _seed_wms_demo(
+    db: Session,
+    *,
+    company,
+    warehouse,
+    items: dict[str, Item],
+    supplier: Supplier,
+    admin: AppUser,
+) -> None:
+    """Catálogo WMS sintético. Nunca modifica cantidades de los saldos."""
+    now = datetime.now(timezone.utc)
+
+    families: dict[str, ItemFamily] = {}
+    for code, name in (
+        ("CONSUMIBLES", "Consumibles y ferretería"),
+        ("LUBRICANTES", "Lubricantes y fluidos"),
+        ("REPUESTOS", "Repuestos y filtros"),
+    ):
+        family = db.execute(
+            select(ItemFamily).where(ItemFamily.company_id == company.id, ItemFamily.code == code)
+        ).scalar_one_or_none()
+        if family is None:
+            family = ItemFamily(company_id=company.id, code=code, name=name, created_by=admin.id)
+            db.add(family)
+            db.flush()
+        families[code] = family
+
+    locations: dict[str, StorageLocation] = {}
+    for code, zone, aisle, rack, level, position, location_type in (
+        ("REC-A-01", "A", "01", None, None, None, "RECEIPT"),
+        ("A-01-R1-1-01", "A", "01", "R1", "1", "01", "STANDARD"),
+        ("A-01-R1-2-01", "A", "01", "R1", "2", "01", "STANDARD"),
+        ("A-02-R1-1-01", "A", "02", "R1", "1", "01", "STANDARD"),
+        ("CUAR-B-01", "B", "01", None, None, None, "QUARANTINE"),
+        ("DESP-C-01", "C", "01", None, None, None, "DISPATCH"),
+    ):
+        location = db.execute(
+            select(StorageLocation).where(
+                StorageLocation.warehouse_id == warehouse.id, StorageLocation.code == code
+            )
+        ).scalar_one_or_none()
+        if location is None:
+            location = StorageLocation(
+                warehouse_id=warehouse.id,
+                code=code,
+                zone=zone,
+                aisle=aisle,
+                rack=rack,
+                level=level,
+                position=position,
+                location_type=location_type,
+                qr_token=f"WMS:{warehouse.code}:{code}",
+                capacity_qty=Decimal("1000"),
+                status="ACTIVE",
+                created_by=admin.id,
+            )
+            db.add(location)
+            db.flush()
+        locations[code] = location
+
+    item_meta: dict[str, dict[str, object]] = {
+        "DEMO-TORNILLO": {
+            "family": "CONSUMIBLES",
+            "manufacturer": "Fabricante Ficticio S.A.",
+            "part": "FF-M8-30",
+            "barcode": "7500000000017",
+            "consumable": True,
+        },
+        "DEMO-ACEITE": {
+            "family": "LUBRICANTES",
+            "manufacturer": "Lubricantes Demo",
+            "part": "LD-HID-46",
+            "barcode": "7500000000024",
+            "consumable": True,
+        },
+        "DEMO-FILTRO": {
+            "family": "REPUESTOS",
+            "manufacturer": "Filtros Demo",
+            "part": "FD-AIR-200",
+            "barcode": "7500000000031",
+            "consumable": False,
+        },
+    }
+    for code, meta in item_meta.items():
+        item = items[code]
+        if item.family_id is None:
+            item.family_id = families[str(meta["family"])].id
+        if item.manufacturer is None:
+            item.manufacturer = str(meta["manufacturer"])
+            item.manufacturer_part_no = str(meta["part"])
+            item.barcode = str(meta["barcode"])
+        item.is_consumable = bool(meta["consumable"])
+        item.is_returnable = code == "DEMO-FILTRO"
+        item.is_tool = False
+        item.reorder_point = Decimal("20")
+        item.safety_stock = Decimal("10")
+        item.max_stock = Decimal("500")
+        item.default_supplier_id = supplier.id
+        db.flush()
+
+        relation = db.execute(
+            select(ItemSupplier).where(ItemSupplier.item_id == item.id, ItemSupplier.supplier_id == supplier.id)
+        ).scalar_one_or_none()
+        if relation is None:
+            db.add(
+                ItemSupplier(
+                    item_id=item.id,
+                    supplier_id=supplier.id,
+                    supplier_part_number=str(meta["part"]),
+                    lead_time_days=5,
+                    min_order_qty=Decimal("1"),
+                    preferred=True,
+                    last_unit_cost=item.standard_cost,
+                    created_by=admin.id,
+                )
+            )
+
+    tornillo = items["DEMO-TORNILLO"]
+    xref = db.execute(
+        select(ItemCrossReference).where(
+            ItemCrossReference.item_id == tornillo.id,
+            ItemCrossReference.reference_type == "MANUFACTURER",
+            ItemCrossReference.reference_code == "FF-M8-30",
+        )
+    ).scalar_one_or_none()
+    if xref is None:
+        db.add(
+            ItemCrossReference(
+                item_id=tornillo.id,
+                reference_type="MANUFACTURER",
+                reference_code="FF-M8-30",
+                authorised=True,
+                approved_by=admin.id,
+                valid_from=now,
+                notes="Equivalencia sintética autorizada para demostración.",
+                created_by=admin.id,
+            )
+        )
+
+    lots: dict[str, Lot] = {}
+    for item_code, lot_number in (("DEMO-TORNILLO", "LOT-DEMO-001"), ("DEMO-ACEITE", "LOT-DEMO-002")):
+        lot = db.execute(
+            select(Lot).where(Lot.item_id == items[item_code].id, Lot.lot_number == lot_number)
+        ).scalar_one_or_none()
+        if lot is None:
+            lot = Lot(
+                item_id=items[item_code].id,
+                lot_number=lot_number,
+                manufactured_at=now - timedelta(days=15),
+                expiry_date=date.today() + timedelta(days=365),
+                status="ACTIVE",
+                created_by=admin.id,
+            )
+            db.add(lot)
+            db.flush()
+        lots[item_code] = lot
+        items[item_code].lot_tracked = True
+
+    filtro = items["DEMO-FILTRO"]
+    filtro.serial_tracked = True
+    for index in range(1, 4):
+        serial_number = f"SER-DEMO-{index:03d}"
+        serial = db.execute(
+            select(Serial).where(Serial.item_id == filtro.id, Serial.serial_number == serial_number)
+        ).scalar_one_or_none()
+        if serial is None:
+            db.add(
+                Serial(
+                    item_id=filtro.id,
+                    serial_number=serial_number,
+                    status="ACTIVE",
+                    current_location_id=locations["A-01-R1-2-01"].id,
+                    created_by=admin.id,
+                )
+            )
+
+    restriction = db.execute(
+        select(LocationRestriction).where(
+            LocationRestriction.location_id == locations["A-02-R1-1-01"].id,
+            LocationRestriction.item_family_id == families["CONSUMIBLES"].id,
+        )
+    ).scalar_one_or_none()
+    if restriction is None:
+        db.add(
+            LocationRestriction(
+                location_id=locations["A-02-R1-1-01"].id,
+                item_family_id=families["CONSUMIBLES"].id,
+                max_qty=Decimal("250"),
+                created_by=admin.id,
+            )
+        )
+
+    for item_code, location_code in (
+        ("DEMO-TORNILLO", "A-01-R1-1-01"),
+        ("DEMO-ACEITE", "A-02-R1-1-01"),
+        ("DEMO-FILTRO", "A-01-R1-2-01"),
+    ):
+        balance = db.execute(
+            select(StockBalance).where(
+                StockBalance.warehouse_id == warehouse.id,
+                StockBalance.item_id == items[item_code].id,
+                StockBalance.lot_id == NULL_UUID,
+                StockBalance.location_id == NULL_UUID,
+            )
+        ).scalar_one_or_none()
+        if balance is not None and balance.location_ref_id is None:
+            balance.location_ref_id = locations[location_code].id
+            lot = lots.get(item_code)
+            if lot is not None:
+                balance.lot_ref_id = lot.id
+    db.flush()
 
 
 def seed_demo_data(db: Session) -> None:
@@ -412,6 +636,15 @@ def seed_demo_data(db: Session) -> None:
             event_type="INITIAL_STOCK_SEEDED",
             payload={"item": code, "quantity": str(qty)},
         )
+
+    _seed_wms_demo(
+        db,
+        company=company,
+        warehouse=warehouse,
+        items=items,
+        supplier=supplier,
+        admin=admin,
+    )
 
     db.commit()
 

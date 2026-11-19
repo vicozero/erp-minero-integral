@@ -1,0 +1,109 @@
+EVIDENCIA REAL · NAVEGADOR LOCAL · 2026-11-19
+URL: http://127.0.0.1:8080/ubicaciones
+Sesión: demo.admin (ADMIN)
+Método: texto real extraído del DOM renderizado por Chromium (document.querySelector('main').innerText).
+Nota: no se tomó captura de pantalla porque la ventana de escritorio no estaba visible durante la misión nocturna.
+
+--- INICIO TEXTO RENDERIZADO ---
+
+Ubicaciones de almacén
+
+Estructura física, capacidad, ocupación y referencias de etiqueta WMS
+
+Lote A · WMS
+DEMOSTRACIÓN · Datos sintéticos aislados · Inventario operativo, no oficial
+Filtrar ubicaciones
+Texto, zona o pasillo
+Almacén
+Todos
+Almacén principal demo
+Tipo
+Todos
+Recepción
+Almacenamiento
+Cuarentena
+Despacho
+Tránsito
+Desecho
+Estado
+Todos
+Activa
+Bloqueada
+Inactiva
+Buscar
+Nueva ubicación
+
+El token de etiqueta se genera automáticamente y se registra en auditoría
+
+Almacén
+Seleccione…
+Almacén principal demo
+Código
+Zona
+Pasillo
+Estante
+Nivel
+Posición
+Tipo
+Recepción
+Almacenamiento
+Cuarentena
+Despacho
+Tránsito
+Desecho
+Capacidad
+Estado
+Activa
+Bloqueada
+Inactiva
+Permite surtido
+Permite recepción
+Crear ubicación
+Ubicaciones (6)
+
+La ocupación se calcula desde los saldos de inventario, no se captura manualmente
+
+CÓDIGO	ALMACÉN	TIPO	ESTADO	OCUPACIÓN	ARTÍCULOS
+A-01-R1-1-01A · 01 · R1	ALM_PRINCIPAL_DEMO	Almacenamiento	Activa	120 / 1,000 12%	1
+A-01-R1-2-01A · 01 · R1	ALM_PRINCIPAL_DEMO	Almacenamiento	Activa	40 / 1,000 4%	1
+A-02-R1-1-01A · 02 · R1	ALM_PRINCIPAL_DEMO	Almacenamiento	Activa	80 / 1,000 8%	1
+CUAR-B-01B · 01	ALM_PRINCIPAL_DEMO	Cuarentena	Activa	0 / 1,000 0%	0
+DESP-C-01C · 01	ALM_PRINCIPAL_DEMO	Despacho	Activa	0 / 1,000 0%	0
+REC-A-01A · 01	ALM_PRINCIPAL_DEMO	Recepción	Activa	0 / 1,000 0%	0
+Ficha de ubicación
+
+Restricciones, saldos asignados y referencia de etiqueta
+
+A-01-R1-1-01
+
+Almacenamiento · ALM_PRINCIPAL_DEMO
+
+Activa
+Zona
+A
+Pasillo
+01
+Estante
+R1
+Nivel
+1
+Posición
+01
+Capacidad
+1,000
+Ocupación
+120
+Surtido / recepción
+Sí / Sí
+Referencia de etiqueta WMS
+WMS:ALM_PRINCIPAL_DEMO:A-01-R1-1-01
+Token legible para impresión. La generación gráfica y lectura de QR queda pendiente de la Fase 5.
+Restricciones
+
+Sin restricciones por familia o artículo.
+
+Saldos en esta ubicación
+LOTE	UBICACIÓN	EXISTENCIA	RESERVADO	DISPONIBLE
+LOT-DEMO-001	A-01-R1-1-01	120	0	120
+
+--- FIN TEXTO RENDERIZADO ---

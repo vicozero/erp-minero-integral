@@ -1,0 +1,24 @@
+﻿[OK] GET /health detrßs del proxy ù HTTP 200
+[OK] Cabeceras de seguridad ù X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Content-Security-Policy
+[OK] GET /health/db ù HTTP 200
+[OK] Ruta SPA / ù HTTP 200
+[OK] Ruta SPA /login ù HTTP 200
+[OK] Ruta SPA /requisiciones ù HTTP 200
+[OK] Referencia al bundle React
+[OK] Recurso estßtico JS ù HTTP 200
+[OK] API relativa en el bundle ù sin origen hard-codeado
+[OK] Content-Type del bundle
+[OK] Login a travÚs del proxy ù HTTP 200
+[OK] Cookie de sesi¾n HttpOnly
+[OK] Cookie CSRF disponible
+[OK] SameSite configurado
+[OK] Cookies sin Secure en HTTP local
+[OK] WMS: familias de catßlogo ù HTTP 200
+[OK] WMS: b·squeda avanzada con existencia ù HTTP 200
+[OK] WMS: ubicaciones con ocupaci¾n ù HTTP 200
+[OK] WMS: ficha de material ù HTTP 200
+[OK] CSRF exigido en escrituras ù HTTP 403
+[OK] Logout con CSRF vßlido ù HTTP 204
+[OK] Sesi¾n cerrada ù HTTP 401
+
+Resultado: 22/22 verificaciones correctas.

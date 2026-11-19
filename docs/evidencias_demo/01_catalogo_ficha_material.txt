@@ -1,0 +1,121 @@
+EVIDENCIA REAL · NAVEGADOR LOCAL · 2026-11-19
+URL: http://127.0.0.1:8080/catalogo
+Sesión: demo.admin (ADMIN)
+Método: texto real extraído del DOM renderizado por Chromium (document.querySelector('main').innerText).
+Nota: no se tomó captura de pantalla porque la ventana de escritorio no estaba visible durante la misión nocturna.
+
+--- INICIO TEXTO RENDERIZADO ---
+
+Catálogo de materiales
+
+Búsqueda avanzada, existencias operativas y ficha técnica de artículos
+
+Lote A · WMS
+DEMOSTRACIÓN · Datos sintéticos aislados · Inventario operativo, no oficial
+Buscar artículos
+
+Filtros combinables sobre código, descripción, fabricante y código de barras
+
+Texto, código o código de barras
+Familia
+Todas
+Consumibles y ferretería
+Lubricantes y fluidos
+Repuestos y filtros
+Almacén
+Todos
+Almacén principal demo
+Ubicación física
+Todas
+ALM_PRINCIPAL_DEMO · A-01-R1-1-01
+ALM_PRINCIPAL_DEMO · A-01-R1-2-01
+ALM_PRINCIPAL_DEMO · A-02-R1-1-01
+ALM_PRINCIPAL_DEMO · CUAR-B-01
+ALM_PRINCIPAL_DEMO · DESP-C-01
+ALM_PRINCIPAL_DEMO · REC-A-01
+Equipo (GMAO)
+Todos
+Equipo de perforación demo
+Solo activos
+Buscar
+Nueva familia
+
+Alta controlada de catálogo; queda registrada en la bitácora
+
+Código
+Nombre
+Crear familia
+Resultados (3)
+
+Seleccione un artículo para ver su ficha completa
+
+DEMO-ACEITE · Aceite hidráulico demo
+Lubricantes y fluidos
+Lote
+Activa
+LT · Existencia 80 · Disponible 80 · 1 ubicación(es)
+DEMO-FILTRO · Filtro de aire demo
+Repuestos y filtros
+Serie
+Activa
+UND · Existencia 40 · Disponible 40 · 1 ubicación(es)
+DEMO-TORNILLO · Tornillo M8 x 30 (demo)
+Consumibles y ferretería
+Lote
+Activa
+UND · Existencia 120 · Disponible 120 · 1 ubicación(es)
+Ficha de material
+
+Datos técnicos, ubicaciones, lotes, series y trazabilidad documental
+
+Sin fotografía registrada
+DEMO-TORNILLO
+
+Tornillo M8 x 30 (demo)
+
+Activa
+Consumibles y ferretería
+UND
+Consumible
+Existencia
+120
+Reservado
+0
+Disponible
+120
+Fabricante
+Fabricante Ficticio S.A.
+Parte del fabricante
+FF-M8-30
+Código de barras
+7500000000017
+Costo estándar
+2.5
+Punto de reorder
+20
+Stock de seguridad
+10
+Stock máximo
+500
+Peso (kg)
+—
+Volumen (m³)
+—
+Fotografía (JPG, PNG o WEBP · máx. 2 MB)
+Guardar fotografía
+Ubicaciones con existencia
+UBICACIÓN	ALMACÉN	ZONA	LOTE	EXISTENCIA	DISPONIBLE
+A-01-R1-1-01	ALM_PRINCIPAL_DEMO	A-01	LOT-DEMO-001	120	120
+Lotes y series
+LOT-DEMO-001 · ACTIVE
+Proveedores y referencias
+Proveedor ficticio demo · MXN 2.5
+MANUFACTURER: FF-M8-30 · autorizada
+Últimos movimientos
+INV_MOV-LAG-2026-000001 · INITIAL (IN)
+120 UND · saldo 120
+18/11/2026, 10:11:10 p.m. · SEED
+Documentos relacionados
+Sin documentos relacionados.
+
+--- FIN TEXTO RENDERIZADO ---

@@ -9,11 +9,13 @@ import { AccessDenied } from './features/auth/AccessDenied';
 import { ChangePassword } from './features/auth/ChangePassword';
 import { Login } from './features/auth/Login';
 import { Approvals } from './features/approvals/Approvals';
+import { Catalog } from './features/catalog/Catalog';
 import { Dashboard } from './features/dashboard/Dashboard';
 import { History } from './features/history/History';
 import { Inventory } from './features/inventory/Inventory';
 import { Purchases } from './features/purchases/Purchases';
 import { Requisitions } from './features/requisitions/Requisitions';
+import { Locations } from './features/wms/Locations';
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
@@ -55,6 +57,14 @@ export default function App() {
             <Route
               path="compras"
               element={<RequirePermission codes={PERM.VIEW_PURCHASES}><Purchases /></RequirePermission>}
+            />
+            <Route
+              path="catalogo"
+              element={<RequirePermission codes={PERM.VIEW_CATALOG}><Catalog /></RequirePermission>}
+            />
+            <Route
+              path="ubicaciones"
+              element={<RequirePermission codes={PERM.VIEW_LOCATIONS}><Locations /></RequirePermission>}
             />
             <Route
               path="historial"

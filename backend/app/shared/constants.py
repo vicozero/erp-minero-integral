@@ -59,7 +59,17 @@ PERMISSIONS_INTERNAL: tuple[str, ...] = (
     "session.view",
 )
 
-PERMISSIONS: tuple[str, ...] = PERMISSIONS_LEGACY + PERMISSIONS_FASE3 + PERMISSIONS_INTERNAL
+# Lote A del WMS: lectura de catálogo/ubicaciones y altas controladas.
+PERMISSIONS_WMS: tuple[str, ...] = (
+    "catalog.view",
+    "catalog.manage",
+    "warehouse.location.view",
+    "warehouse.location.manage",
+)
+
+PERMISSIONS: tuple[str, ...] = (
+    PERMISSIONS_LEGACY + PERMISSIONS_FASE3 + PERMISSIONS_INTERNAL + PERMISSIONS_WMS
+)
 
 # Alias español -> código canónico heredado. Permite que una política escrita
 # con un código u otro se resuelva a la misma comprobación.
@@ -84,6 +94,10 @@ PERMISSION_ALIASES: dict[str, str] = {
     "roles.asignar": "role.assign",
     "departamentos.consultar": "department.view",
     "sesiones.consultar": "session.view",
+    "catalogo.consultar": "catalog.view",
+    "catalogo.administrar": "catalog.manage",
+    "ubicaciones.consultar": "warehouse.location.view",
+    "ubicaciones.administrar": "warehouse.location.manage",
 }
 
 
@@ -161,17 +175,20 @@ _LECTURA = (
     "departamentos.consultar",
 )
 
+_WMS_READ = ("catalog.view", "warehouse.location.view")
+_WMS_MANAGE = ("catalog.manage", "warehouse.location.manage")
+
 ROLE_PERMISSIONS: dict[str, tuple[str, ...]] = {
     "ADMIN": PERMISSIONS,
-    "SOLICITANTE": _SOLICITANTE,
-    "JEFE_DEPARTAMENTO": _SOLICITANTE + _APROBADOR + ("departamentos.consultar",),
-    "APROBADOR": _APROBADOR,
-    "ALMACENISTA": _ALMACEN,
-    "ALMACEN": _ALMACEN,
-    "COMPRADOR": _COMPRAS,
-    "COMPRAS": _COMPRAS,
-    "GERENCIA": _LECTURA + ("audit.view", "auditoria.consultar", "sesiones.consultar"),
-    "AUDITOR": _LECTURA + ("audit.view", "auditoria.consultar", "usuarios.consultar"),
+    "SOLICITANTE": _SOLICITANTE + _WMS_READ,
+    "JEFE_DEPARTAMENTO": _SOLICITANTE + _APROBADOR + ("departamentos.consultar",) + _WMS_READ,
+    "APROBADOR": _APROBADOR + _WMS_READ,
+    "ALMACENISTA": _ALMACEN + _WMS_READ + _WMS_MANAGE,
+    "ALMACEN": _ALMACEN + _WMS_READ + _WMS_MANAGE,
+    "COMPRADOR": _COMPRAS + _WMS_READ,
+    "COMPRAS": _COMPRAS + _WMS_READ,
+    "GERENCIA": _LECTURA + ("audit.view", "auditoria.consultar", "sesiones.consultar") + _WMS_READ,
+    "AUDITOR": _LECTURA + ("audit.view", "auditoria.consultar", "usuarios.consultar") + _WMS_READ,
 }
 
 ROLE_LABELS: dict[str, str] = {

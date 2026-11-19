@@ -20,6 +20,15 @@ import type {
   UserCreatePayload,
   UserCreated,
   UserUpdatePayload,
+  FamilyPayload,
+  ItemFamily,
+  ItemPhoto,
+  LocationPayload,
+  WmsItem,
+  WmsItemDetail,
+  WmsLocation,
+  WmsLocationDetail,
+  WmsSearchFilters,
 } from './types';
 
 // En el portal compilado la API está en el mismo origen, detrás del proxy
@@ -248,4 +257,49 @@ export const api = {
     }),
   audit: (limit = 100, action?: string) =>
     request<AuditEntry[]>(`/api/v1/audit?limit=${limit}${action ? `&action=${encodeURIComponent(action)}` : ''}`),
+
+  // --- WMS · Lote A -----------------------------------------------------
+  wmsFamilies: () => request<ItemFamily[]>('/api/v1/wms/families'),
+  createFamily: (payload: FamilyPayload) =>
+    request<ItemFamily>('/api/v1/wms/families', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  wmsSearchItems: (filters: WmsSearchFilters = {}) => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') params.set(key, String(value));
+    });
+    const query = params.toString();
+    return request<WmsItem[]>(`/api/v1/wms/items/search${query ? `?${query}` : ''}`);
+  },
+  wmsItemDetail: (id: string) => request<WmsItemDetail>(`/api/v1/wms/items/${id}`),
+  wmsPhotoUrl: (id: string) => `${API_URL}/api/v1/wms/items/${id}/photo`,
+  uploadItemPhoto: (id: string, file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    return request<ItemPhoto>(`/api/v1/wms/items/${id}/photo`, {
+      method: 'POST',
+      body: form,
+    });
+  },
+  wmsLocations: (filters: {
+    warehouse_id?: string;
+    location_type?: string;
+    status?: string;
+    query?: string;
+  } = {}) => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value) params.set(key, value);
+    });
+    const query = params.toString();
+    return request<WmsLocation[]>(`/api/v1/wms/locations${query ? `?${query}` : ''}`);
+  },
+  wmsLocationDetail: (id: string) => request<WmsLocationDetail>(`/api/v1/wms/locations/${id}`),
+  createLocation: (payload: LocationPayload) =>
+    request<WmsLocation>('/api/v1/wms/locations', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
 };

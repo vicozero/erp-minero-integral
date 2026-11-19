@@ -1,0 +1,24 @@
+
+> erp-minero-frontend@0.1.0 test
+> vitest --run
+
+
+ RUN  v2.1.9 E:/ERP_MINERO/frontend
+
+ Ô£ô src/features/approvals/Approvals.test.tsx (2 tests) 508ms
+   Ô£ô Autorizaci├│n parcial por partida > env├¡a la cantidad editada y deja en cero la partida no seleccionada 381ms
+ Ô£ô src/features/catalog/Catalog.test.tsx (2 tests) 653ms
+   Ô£ô Cat├ílogo WMS > busca por texto y muestra la ficha con ubicaci├│n y lote 554ms
+ Ô£ô src/features/wms/Locations.test.tsx (3 tests) 820ms
+   Ô£ô Ubicaciones WMS > muestra ocupaci├│n derivada y el token de etiqueta en la ficha 514ms
+ Ô£ô src/api/client.test.ts (3 tests) 11ms
+stderr | src/App.test.tsx > Pantalla de acceso > muestra el formulario con las cuentas ficticias disponibles
+ÔÜá´©Å React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+ÔÜá´©Å React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+System.Management.Automation.RemoteException
+ Ô£ô src/App.test.tsx (4 tests) 271ms
+
+ Test Files  5 passed (5)
+      Tests  14 passed (14)
+   Start at  00:11:45
+   Duration  7.91s (transform 544ms, setup 2.05s, collect 2.15s, tests 2.26s, environment 9.89s, prepare 1.38s)

@@ -30,6 +30,15 @@ class StockBalance(AuditMixin, Base):
     on_hand_qty: Mapped[Decimal] = mapped_column(Numeric(18, 6), default=Decimal("0"), nullable=False)
     reserved_qty: Mapped[Decimal] = mapped_column(Numeric(18, 6), default=Decimal("0"), nullable=False)
 
+    # Lote A WMS — referencias enriquecidas. Los UUID centinela heredados
+    # (`lot_id`, `location_id`) se conservan intactos por compatibilidad.
+    lot_ref_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("mdm.lot.id", ondelete="RESTRICT"), nullable=True
+    )
+    location_ref_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("mdm.storage_location.id", ondelete="RESTRICT"), nullable=True
+    )
+
 
 class StockReservation(AuditMixin, Base):
     __tablename__ = "stock_reservation"
@@ -55,6 +64,12 @@ class StockReservation(AuditMixin, Base):
     status: Mapped[str] = mapped_column(String(20), default="ACTIVE", nullable=False)
     expires_at: Mapped[datetime] = mapped_column(nullable=False)
     idempotency_key: Mapped[str] = mapped_column(String(160), nullable=False)
+    lot_ref_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("mdm.lot.id", ondelete="RESTRICT"), nullable=True
+    )
+    location_ref_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("mdm.storage_location.id", ondelete="RESTRICT"), nullable=True
+    )
 
 
 class StockMovement(Base):
@@ -98,4 +113,10 @@ class StockMovement(Base):
     posted_at: Mapped[datetime] = mapped_column(default=func.now(), nullable=False)
     created_by: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("seg.app_user.id", ondelete="RESTRICT"), nullable=True
+    )
+    lot_ref_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("mdm.lot.id", ondelete="RESTRICT"), nullable=True
+    )
+    location_ref_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("mdm.storage_location.id", ondelete="RESTRICT"), nullable=True
     )

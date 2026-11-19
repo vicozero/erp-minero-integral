@@ -31,6 +31,13 @@ const navGroups: { label: string; items: NavItem[] }[] = [
     ],
   },
   {
+    label: 'WMS · Catálogo',
+    items: [
+      { to: '/catalogo', label: 'Catálogo de materiales', icon: 'box', codes: PERM.VIEW_CATALOG },
+      { to: '/ubicaciones', label: 'Ubicaciones', icon: 'location', codes: PERM.VIEW_LOCATIONS },
+    ],
+  },
+  {
     label: 'Trazabilidad',
     items: [
       { to: '/historial', label: 'Historial', icon: 'history', codes: PERM.VIEW_HISTORY },

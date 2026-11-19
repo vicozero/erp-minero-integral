@@ -390,6 +390,13 @@ tbody tr:hover { background: var(--surface-alt); }
 .detail-grid span { color: var(--text-muted); font-size: 11px; }
 .detail-grid strong { font-size: 13px; }
 .chip-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.detail-stack { display: grid; gap: 14px; }
+.detail-header { display: grid; grid-template-columns: 150px 1fr; gap: 16px; align-items: start; }
+.detail-header h3 { margin: 0 0 6px; font-size: 17px; }
+.detail-header p { margin: 0 0 10px; color: var(--text-soft); font-size: 13px; }
+.detail-stack h3 { margin: 4px 0 -4px; font-size: 13px; color: var(--text-soft); }
+.link-button { border: 0; background: none; padding: 0; color: var(--petrol-600); font-weight: 700; cursor: pointer; text-align: left; }
+.link-button:hover { text-decoration: underline; }
 
 /* --- Adaptación a tabletas y pantallas estrechas ------------------------- */
 @media (max-width: 1200px) {

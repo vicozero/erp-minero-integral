@@ -13,6 +13,10 @@ export const PERM = {
   CREATE_PURCHASES: ['purchase.order.create', 'compras.crear'],
   ADMIN_USERS: ['admin.users.manage', 'usuarios.administrar'],
   VIEW_AUDIT: ['audit.view', 'auditoria.consultar'],
+  VIEW_CATALOG: ['catalog.view', 'catalogo.consultar'],
+  MANAGE_CATALOG: ['catalog.manage', 'catalogo.administrar'],
+  VIEW_LOCATIONS: ['warehouse.location.view', 'ubicaciones.consultar'],
+  MANAGE_LOCATIONS: ['warehouse.location.manage', 'ubicaciones.administrar'],
 } as const;
 
 export function can(user: User | null, ...codes: readonly string[]): boolean {

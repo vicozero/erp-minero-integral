@@ -242,3 +242,184 @@ export interface UserUpdatePayload {
   status?: 'ACTIVE' | 'INACTIVE';
   department_ids?: string[];
 }
+
+// --- WMS · Lote A: catálogo, ubicaciones y búsquedas -----------------------
+export interface ItemFamily {
+  id: string;
+  code: string;
+  name: string;
+  parent_id: string | null;
+  is_active: boolean;
+}
+
+export interface WmsItem {
+  id: string;
+  code: string;
+  description: string;
+  family_id: string | null;
+  family_name: string | null;
+  manufacturer: string | null;
+  manufacturer_part_no: string | null;
+  barcode: string | null;
+  uom_id: string;
+  uom_code: string;
+  standard_cost: string;
+  lot_tracked: boolean;
+  serial_tracked: boolean;
+  is_consumable: boolean;
+  is_returnable: boolean;
+  is_tool: boolean;
+  is_active: boolean;
+  on_hand_qty: string;
+  reserved_qty: string;
+  available_qty: string;
+  location_count: number;
+}
+
+export interface StockLocationBalance {
+  location_id: string;
+  location_code: string;
+  warehouse_code: string;
+  zone: string | null;
+  aisle: string | null;
+  lot_number: string | null;
+  on_hand_qty: string;
+  reserved_qty: string;
+  available_qty: string;
+}
+
+export interface WmsLot {
+  id: string;
+  lot_number: string;
+  status: string;
+  manufactured_at: string | null;
+  expiry_date: string | null;
+}
+
+export interface WmsSerial {
+  id: string;
+  serial_number: string;
+  status: string;
+  lot_id: string | null;
+  current_location_id: string | null;
+}
+
+export interface ItemCrossReference {
+  id: string;
+  reference_type: string;
+  reference_code: string;
+  equivalent_item_id: string | null;
+  authorised: boolean;
+}
+
+export interface ItemSupplierInfo {
+  id: string;
+  supplier_id: string;
+  supplier_name: string;
+  supplier_part_number: string | null;
+  lead_time_days: number;
+  min_order_qty: string;
+  preferred: boolean;
+  last_unit_cost: string | null;
+  currency: string;
+}
+
+export interface RelatedDocument {
+  document_no: string;
+  document_type: string;
+  status: string;
+  occurred_at: string;
+}
+
+export interface WmsItemDetail extends WmsItem {
+  image_url: string | null;
+  supplier_name: string | null;
+  default_supplier_id: string | null;
+  reorder_point: string | null;
+  safety_stock: string | null;
+  max_stock: string | null;
+  weight_kg: string | null;
+  volume_m3: string | null;
+  storage_temperature_min: string | null;
+  storage_temperature_max: string | null;
+  locations: StockLocationBalance[];
+  lots: WmsLot[];
+  serials: WmsSerial[];
+  cross_references: ItemCrossReference[];
+  suppliers: ItemSupplierInfo[];
+  movements: StockMovement[];
+  related_documents: RelatedDocument[];
+}
+
+export interface WmsLocation {
+  id: string;
+  warehouse_id: string;
+  warehouse_code: string;
+  code: string;
+  zone: string | null;
+  aisle: string | null;
+  rack: string | null;
+  level: string | null;
+  position: string | null;
+  location_type: string;
+  qr_token: string;
+  capacity_qty: string;
+  status: string;
+  is_pickable: boolean;
+  is_receivable: boolean;
+  occupied_qty: string;
+  item_count: number;
+}
+
+export interface LocationRestriction {
+  item_family_id: string | null;
+  item_id: string | null;
+  max_qty: string | null;
+  allows_lot_mix: boolean;
+  allows_serial_mix: boolean;
+}
+
+export interface WmsLocationDetail extends WmsLocation {
+  restrictions: LocationRestriction[];
+  items: StockLocationBalance[];
+}
+
+export interface LocationPayload {
+  warehouse_id: string;
+  code: string;
+  zone?: string | null;
+  aisle?: string | null;
+  rack?: string | null;
+  level?: string | null;
+  position?: string | null;
+  location_type: 'RECEIPT' | 'STANDARD' | 'QUARANTINE' | 'DISPATCH' | 'TRANSIT' | 'SCRAP';
+  capacity_qty: string;
+  status?: 'ACTIVE' | 'BLOCKED' | 'INACTIVE';
+  is_pickable?: boolean;
+  is_receivable?: boolean;
+}
+
+export interface FamilyPayload {
+  code: string;
+  name: string;
+  parent_id?: string | null;
+  is_active?: boolean;
+}
+
+export interface ItemPhoto {
+  item_id: string;
+  image_path: string;
+  image_sha256: string;
+  image_url: string;
+}
+
+export interface WmsSearchFilters {
+  query?: string;
+  family_id?: string;
+  warehouse_id?: string;
+  location_id?: string;
+  equipment_id?: string;
+  active_only?: boolean;
+  limit?: number;
+  offset?: number;
+}

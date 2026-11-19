@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy.orm import Session
@@ -44,6 +45,7 @@ def list_all(
     document_no: str | None = None,
     date_from: datetime | None = None,
     date_to: datetime | None = None,
+    sla_color: Literal["GREEN", "YELLOW", "RED", "NONE"] | None = None,
     db: Session = Depends(get_db),
     actor: AppUser = Depends(require_permission("requisition.view")),
 ) -> list[dict]:
@@ -66,7 +68,11 @@ def list_all(
     if date_to is not None:
         stmt = stmt.filter(Requisition.created_at <= date_to)
     reqs = stmt.order_by(Requisition.created_at.desc()).all()
-    return [Service.to_out(db, req) for req in reqs]
+    results = [Service.to_out(db, req) for req in reqs]
+    if sla_color is not None:
+        # El color ya fue calculado por SlaService dentro de `to_out`.
+        results = [item for item in results if item["sla"]["color"] == sla_color]
+    return results
 
 
 @router.get("/{requisition_id}", response_model=RequisitionOut)

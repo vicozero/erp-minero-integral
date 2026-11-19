@@ -17,6 +17,7 @@ import type {
   RequisitionPayload,
   Role,
   Session,
+  SlaEvaluation,
   StockMovement,
   User,
   UserCreatePayload,
@@ -199,6 +200,7 @@ export const api = {
       body: JSON.stringify({ reason }),
     }),
   history: (id: string) => request<HistoryEvent[]>(`/api/v1/requisitions/${id}/history`),
+  slaHistory: (id: string) => request<SlaEvaluation[]>(`/api/v1/sla/requisitions/${id}/history`),
   attachments: (id: string) =>
     request<RequisitionAttachment[]>(`/api/v1/requisitions/${id}/attachments`),
   uploadAttachment: (id: string, file: File) => {

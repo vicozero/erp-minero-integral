@@ -20,6 +20,7 @@ from app.modules.master_data import models as master_models  # noqa: F401
 from app.modules.organization import models as organization_models  # noqa: F401
 from app.modules.purchasing import models as purchasing_models  # noqa: F401
 from app.modules.requisitions import models as requisition_models  # noqa: F401
+from app.modules.sla import models as sla_models  # noqa: F401
 from app.modules.workflow import models as workflow_models  # noqa: F401
 
 config = context.config

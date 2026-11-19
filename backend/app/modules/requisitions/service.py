@@ -21,6 +21,7 @@ from app.modules.master_data.models import Item, Uom
 from app.modules.organization.models import Department, MiningUnit, Warehouse
 from app.modules.purchasing.service import PurchasingService
 from app.modules.requisitions.models import Requisition, RequisitionAttachment, RequisitionLine
+from app.modules.sla.service import SlaService
 from app.modules.workflow.models import ApprovalDecision, ApprovalRequest, ApprovalStep
 from app.shared.constants import APPROVER_ROLE_CODES
 from app.shared.events import emit
@@ -338,6 +339,7 @@ class RequisitionService:
             after={"status": "SUBMITTED"},
         )
         emit(db, "Requisition", req.id, "REQUISITION_SUBMITTED", {})
+        SlaService.record_snapshot(db, req, trigger="ON_SUBMIT", actor_id=actor_id)
         return req
 
     @staticmethod
@@ -494,6 +496,7 @@ class RequisitionService:
             detail=payload.reason,
         )
         emit(db, "Requisition", req.id, "REQUISITION_DECIDED", {"status": new_status})
+        SlaService.record_snapshot(db, req, trigger="ON_DECIDE", actor_id=actor_id)
         return req
 
     @staticmethod
@@ -562,6 +565,7 @@ class RequisitionService:
             detail=reason,
         )
         emit(db, "Requisition", req.id, "REQUISITION_CANCELLED", {"reason": reason})
+        SlaService.record_snapshot(db, req, trigger="ON_CANCEL", actor_id=actor_id)
         return req
 
     @staticmethod
@@ -611,6 +615,7 @@ class RequisitionService:
             "rejected_at": req.rejected_at,
             "rejection_reason": req.rejection_reason,
             "created_at": req.created_at,
+            "sla": SlaService.evaluate(db, req),
             "lines": lines,
         }
 

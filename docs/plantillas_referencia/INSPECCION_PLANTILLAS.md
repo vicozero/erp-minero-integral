@@ -209,5 +209,5 @@ No se detectaron nombres ni firmas manuscritas en los tres bloques de firma; apa
 1. **Resuelto:** las plantillas autorizadas están copiadas y versionadas en esta carpeta. El usuario confirmó el uso de `VA-000162.pdf` y de la requisición Carta/Nitro; los PDF originales no se publican en la API.
 2. **Resuelto:** el tipo documental del vale quedó como `VA`, serie `VA / LAG`, sin año, con secuencia inicial `166`.
 3. **Pendiente:** revisar visualmente el valor del folio de la requisición; no aparece en la capa de texto.
-4. **Pendiente:** validar visualmente los PDF/XLSX generados contra las plantillas en `docs/EVIDENCIA_FORMATOS/`; la comparación actual es estructural.
-5. **Pendiente:** definir la política de SLA/semáforo antes de implementar cálculos (siguiente lote).
+4. **Resuelto:** el usuario aprobó visualmente los PDF/XLSX/PNG de `docs/EVIDENCIA_FORMATOS/` el 19/11/2026.
+5. **Resuelto:** la política de SLA/semáforo quedó aprobada e implementada; el contrato está en `docs/SLA_SEMAFORO.md`.

@@ -1,6 +1,6 @@
 # Resultados — Módulo documental (Lote 1, parcial)
 
-Fecha: 19/11/2026. Estado: **formatos implementados y probados localmente**; el Lote 1 completa solo la fase de PDF/XLSX. El semáforo de requisiciones y el almacén virtual siguen pendientes, en ese orden, según el plan acordado.
+Fecha: 19/11/2026. Estado: **formatos implementados, probados localmente y aprobados visualmente por el usuario**. El Lote 1 completó la fase de PDF/XLSX; el semáforo SLA quedó implementado en el Lote 2 (`docs/RESULTADOS_SEMAFORO_SLA.md`) y el almacén virtual sigue pendiente.
 
 ## Decisiones registradas
 
@@ -10,7 +10,7 @@ Fecha: 19/11/2026. Estado: **formatos implementados y probados localmente**; el 
 | Folio VA | Serie `VA / LAG`, sin año, `VA-000166` en adelante |
 | Plantilla REQ | Versión Carta/Nitro del escritorio, no la copia A4/Excel |
 | Imágenes del almacén | Los 4 PNG se registrarán como fondos disponibles; no se presentarán como plano exacto (fase posterior) |
-| SLA | El asistente propondrá la configuración; no se activará emergencia sin aprobación (fase posterior) |
+| SLA | Configuración aprobada e implementada en el Lote 2; emergencia desactivada hasta aprobación explícita |
 
 ## Cambios entregados
 
@@ -53,7 +53,7 @@ Resultados:
 
 ## Limitaciones conocidas
 
-1. **Revisión visual pendiente**: la validación es estructural; este modelo no puede ver PDFs/PNG. Una persona debe abrir `docs/EVIDENCIA_FORMATOS/` frente a las plantillas autorizadas.
+1. **Revisión visual resuelta**: el usuario aprobó los PDF/XLSX/PNG de `docs/EVIDENCIA_FORMATOS/` el 19/11/2026. La comparación automatizada sigue siendo estructural, no una sustitución de esa revisión humana.
 2. El XLSX del REQ usa columnas de meses simplificadas respecto del original; conserva área de impresión y edición, pero no es una réplica celda por celda.
 3. No se capturan firmas gráficas; la aprobación electrónica se distingue por texto y por el historial de aprobación.
 4. `PROVEEDOR RECOMENDADO` y `PROGRAMADO` se imprimen vacíos por falta de fuente autorizada.

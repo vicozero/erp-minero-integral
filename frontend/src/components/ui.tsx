@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import type { Requisition } from '../api/types';
+import type { Requisition, SlaResult } from '../api/types';
 import { Icon } from './Icon';
 
 export function PageHeader({
@@ -178,6 +178,30 @@ export function PriorityBadge({ priority }: { priority: string }) {
   return (
     <span className={`badge priority-${priority.toLowerCase()}`}>
       {PRIORITY_LABELS[priority] ?? priority.replaceAll('_', ' ')}
+    </span>
+  );
+}
+
+/**
+ * Indicador SLA calculado en backend. Se muestra separado del estado
+ * administrativo y con etiqueta textual para no depender solo del color.
+ */
+export function SlaBadge({
+  sla,
+}: {
+  sla: (Pick<SlaResult, 'color' | 'label'> & { message?: string | null }) | null | undefined;
+}) {
+  const color = sla?.color ?? 'NONE';
+  const label = sla?.label ?? 'Sin medición';
+  const detail = sla?.message ? ` ${sla.message}` : '';
+  return (
+    <span
+      className={`sla-badge sla-${color.toLowerCase()}`}
+      title={`Semáforo SLA: ${label}.${detail} No sustituye al estado administrativo.`}
+      aria-label={`Semáforo SLA: ${label}. No sustituye al estado administrativo.`}
+    >
+      <span className="sla-dot" aria-hidden="true" />
+      {label}
     </span>
   );
 }

@@ -81,6 +81,39 @@ export interface Catalogs {
   equipment: CatalogItem[];
 }
 
+/** Colores derivados en backend; no son estados administrativos. */
+export type SlaColor = 'GREEN' | 'YELLOW' | 'RED' | 'NONE';
+
+export interface SlaResult {
+  color: SlaColor;
+  label: string;
+  measured: boolean;
+  administrative_status: string;
+  base_at: string | null;
+  elapsed_hours: string | null;
+  green_deadline: string | null;
+  yellow_deadline: string | null;
+  policy_id: string | null;
+  policy_scope: string;
+  emergency_active: boolean;
+  message: string | null;
+}
+
+export interface SlaEvaluation {
+  id: string;
+  requisition_id: string;
+  occurred_at: string;
+  base_at: string | null;
+  elapsed_hours: string | null;
+  color: SlaColor;
+  label: string;
+  policy_id: string | null;
+  policy_scope: string;
+  trigger: string;
+  actor_id: string | null;
+  metadata_json: Record<string, unknown> | null;
+}
+
 export interface RequisitionLine {
   id: string;
   line_no: number;
@@ -118,6 +151,8 @@ export interface Requisition {
   rejection_reason: string | null;
   work_order_no: string | null;
   created_at: string;
+  /** Indicador calculado por el backend; nunca sustituye a `status`. */
+  sla?: SlaResult | null;
   lines: RequisitionLine[];
 }
 
@@ -133,6 +168,7 @@ export interface RequisitionAttachment {
 
 export interface RequisitionFilters {
   status?: string;
+  sla_color?: SlaColor;
   priority?: string;
   department_id?: string;
   equipment_id?: string;

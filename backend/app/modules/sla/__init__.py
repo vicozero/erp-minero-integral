@@ -1,0 +1,1 @@
+"""Semáforo SLA de requisiciones."""

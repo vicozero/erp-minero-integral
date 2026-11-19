@@ -40,6 +40,35 @@ function requisition(status: string): Requisition {
     rejection_reason: null,
     work_order_no: null,
     created_at: '2026-11-19T09:00:00Z',
+    sla: status === 'DRAFT'
+      ? {
+        color: 'NONE',
+        label: 'Sin medición',
+        measured: false,
+        administrative_status: status,
+        base_at: null,
+        elapsed_hours: null,
+        green_deadline: null,
+        yellow_deadline: null,
+        policy_id: null,
+        policy_scope: 'SIN_POLITICA',
+        emergency_active: false,
+        message: 'El semáforo no aplica a borradores ni a documentos cerrados.',
+      }
+      : {
+        color: 'YELLOW',
+        label: 'En riesgo',
+        measured: true,
+        administrative_status: status,
+        base_at: '2026-11-19T10:00:00Z',
+        elapsed_hours: '30.00',
+        green_deadline: '2026-11-20T10:00:00Z',
+        yellow_deadline: '2026-11-21T10:00:00Z',
+        policy_id: '44444444-4444-4444-4444-444444444444',
+        policy_scope: 'GLOBAL',
+        emergency_active: false,
+        message: null,
+      },
     lines: [{
       id: 'line-1',
       line_no: 1,
@@ -102,6 +131,20 @@ function mockApi(status = 'DRAFT') {
       occurred_at: '2026-11-19T09:00:00Z',
       actor_id: '33333333-3333-3333-3333-333333333333',
       metadata: { origin: 'portal' },
+    }]),
+    slaHistory: vi.spyOn(api, 'slaHistory').mockResolvedValue([{
+      id: '55555555-5555-5555-5555-555555555555',
+      requisition_id: 'req-1',
+      occurred_at: '2026-11-19T10:00:00Z',
+      base_at: '2026-11-19T10:00:00Z',
+      elapsed_hours: '0.00',
+      color: 'GREEN',
+      label: 'En plazo',
+      policy_id: '44444444-4444-4444-4444-444444444444',
+      policy_scope: 'GLOBAL',
+      trigger: 'ON_SUBMIT',
+      actor_id: '33333333-3333-3333-3333-333333333333',
+      metadata_json: { administrative_status: 'SUBMITTED' },
     }]),
   };
 }
@@ -190,5 +233,32 @@ describe('Mejora de requisiciones', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Seguimiento' }));
     expect(await screen.findByText(/Actor 33333333/)).toBeInTheDocument();
+  });
+
+  it('muestra el semáforo separado del estado y su historial', async () => {
+    const { slaHistory } = mockApi('SUBMITTED');
+    render(<Requisitions />);
+    await screen.findAllByText('REQ-LAG-2026-000001');
+
+    expect(screen.getByText('Enviada')).toBeInTheDocument();
+    expect(screen.getByLabelText('Semáforo SLA: En riesgo. No sustituye al estado administrativo.')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Historial SLA' }));
+    expect(await screen.findByText('Historial SLA de REQ-LAG-2026-000001')).toBeInTheDocument();
+    expect(screen.getByText(/ON SUBMIT/)).toBeInTheDocument();
+    expect(slaHistory).toHaveBeenCalledWith('req-1');
+  });
+
+  it('envía el filtro de semáforo al backend calculador', async () => {
+    mockApi('SUBMITTED');
+    render(<Requisitions />);
+    await screen.findAllByText('REQ-LAG-2026-000001');
+
+    fireEvent.change(screen.getByLabelText('Semáforo SLA'), { target: { value: 'RED' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar filtros' }));
+
+    await waitFor(() => expect(api.requisitions).toHaveBeenLastCalledWith(
+      expect.objectContaining({ sla_color: 'RED' }),
+    ));
   });
 });

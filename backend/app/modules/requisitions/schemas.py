@@ -7,6 +7,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.modules.sla.schemas import SlaResult
+
 
 class RequisitionLineIn(BaseModel):
     id: uuid.UUID | None = None
@@ -81,6 +83,8 @@ class RequisitionOut(BaseModel):
     rejected_at: datetime | None
     rejection_reason: str | None
     created_at: datetime
+    # Indicador derivado: nunca sustituye a ``status``.
+    sla: SlaResult | None = None
     lines: list[RequisitionLineOut] = []
 
 

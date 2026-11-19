@@ -29,6 +29,7 @@ from app.modules.master_data.models import (
     Uom,
 )
 from app.modules.organization.models import Company, Department, MiningUnit, Warehouse
+from app.modules.sla.models import SlaPolicy
 from app.shared.constants import DOCUMENT_TYPES, ROLE_LABELS, ROLE_PERMISSIONS
 from app.shared.events import emit
 from app.shared.numbering import next_document_number
@@ -310,6 +311,49 @@ def _seed_wms_demo(
             if lot is not None:
                 balance.lot_ref_id = lot.id
     db.flush()
+
+
+def _seed_sla_policies(db: Session) -> None:
+    """Siembra de forma idempotente la política SLA aprobada para la demo.
+
+    El modo emergencia permanece desactivado: solo puede activarlo un actor
+    con ``sla.policy.approve`` mediante el servicio auditado.
+    """
+    policies = (
+        ("11111111-1111-4111-8111-000000000001", "LOW", 72, 96),
+        ("11111111-1111-4111-8111-000000000002", "NORMAL", 48, 72),
+        ("11111111-1111-4111-8111-000000000003", "HIGH", 24, 48),
+        ("11111111-1111-4111-8111-000000000004", "URGENT", 8, 16),
+    )
+    for policy_id, priority, green_hours, yellow_hours in policies:
+        exists = db.execute(
+            select(SlaPolicy.id).where(
+                SlaPolicy.priority == priority,
+                SlaPolicy.department_key == "ALL",
+                SlaPolicy.requisition_type == "ALL",
+            )
+        ).first()
+        if exists is not None:
+            continue
+        db.add(
+            SlaPolicy(
+                id=uuid.UUID(policy_id),
+                priority=priority,
+                department_key="ALL",
+                department_id=None,
+                requisition_type="ALL",
+                green_hours=green_hours,
+                yellow_hours=yellow_hours,
+                is_active=True,
+                emergency_enabled=False,
+                emergency_green_hours=4,
+                emergency_yellow_hours=8,
+                scope="GLOBAL",
+                evidence="Propuesta aprobada por el usuario el 19/11/2026.",
+                notes="La emergencia requiere aprobación explícita y permiso sla.policy.approve.",
+            )
+        )
+        db.flush()
 
 
 def seed_demo_data(db: Session) -> None:
@@ -645,6 +689,7 @@ def seed_demo_data(db: Session) -> None:
         supplier=supplier,
         admin=admin,
     )
+    _seed_sla_policies(db)
 
     db.commit()
 

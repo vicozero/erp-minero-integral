@@ -17,6 +17,7 @@ from app.api.v1.routers import (
     inventory,
     purchasing,
     requisitions,
+    sla,
     wms,
 )
 from app.core.config import settings
@@ -111,6 +112,7 @@ for modular_router in (
     inventory.router,
     purchasing.router,
     documentation.router,
+    sla.router,
     wms.router,
     audit.router,
 ):

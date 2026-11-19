@@ -98,6 +98,13 @@ PERMISSIONS_DOCUMENTAL: tuple[str, ...] = (
     "warehouse.voucher.issue",
 )
 
+# Semáforo SLA: consulta, configuración de umbrales y aprobación de emergencia.
+PERMISSIONS_SLA: tuple[str, ...] = (
+    "sla.view",
+    "sla.policy.configure",
+    "sla.policy.approve",
+)
+
 # Aliases en español de los permisos operativos del Lote B. Se conserva
 # `almacenes.kardex -> inventory.kardex.view` para no romper el contrato actual.
 PERMISSIONS_WMS_LOTE_B_ALIASES: tuple[str, ...] = (
@@ -119,6 +126,7 @@ PERMISSIONS: tuple[str, ...] = (
     + PERMISSIONS_WMS_LOTE_B
     + PERMISSIONS_WMS_LOTE_B_ALIASES
     + PERMISSIONS_DOCUMENTAL
+    + PERMISSIONS_SLA
 )
 
 # Alias español -> código canónico heredado. Permite que una política escrita
@@ -175,6 +183,7 @@ _SOLICITANTE = (
     "requisiciones.historial",
     "almacenes.consultar",
     "document.render",
+    "sla.view",
 )
 _APROBADOR = (
     "requisition.approve",
@@ -189,6 +198,7 @@ _APROBADOR = (
     "requisiciones.historial",
     "almacenes.consultar",
     "document.render",
+    "sla.view",
 )
 _ALMACEN = (
     "inventory.availability.view",
@@ -208,6 +218,7 @@ _ALMACEN = (
     "document.render",
     "warehouse.voucher.create",
     "warehouse.voucher.issue",
+    "sla.view",
 )
 _COMPRAS = (
     "purchase.order.create",
@@ -223,6 +234,7 @@ _COMPRAS = (
     "compras.consultar",
     "almacenes.consultar",
     "document.render",
+    "sla.view",
 )
 _LECTURA = (
     "requisition.view",
@@ -238,6 +250,7 @@ _LECTURA = (
     "compras.consultar",
     "departamentos.consultar",
     "document.render",
+    "sla.view",
 )
 
 _WMS_READ = ("catalog.view", "warehouse.location.view")
@@ -260,7 +273,7 @@ ROLE_PERMISSIONS: dict[str, tuple[str, ...]] = {
     "COMPRAS": _COMPRAS + _WMS_READ,
     "GERENCIA": (
         _LECTURA
-        + ("audit.view", "auditoria.consultar", "sesiones.consultar")
+        + ("audit.view", "auditoria.consultar", "sesiones.consultar", "sla.policy.approve")
         + _WMS_READ
         + _WMS_B_VIEW
     ),
@@ -296,3 +309,9 @@ MOVEMENT_DIRECTIONS = ("IN", "OUT")
 RESERVATION_STATUSES = ("ACTIVE", "CONSUMED", "RELEASED", "EXPIRED")
 PURCHASE_ORDER_STATUSES = ("DRAFT", "APPROVED", "SENT", "PARTIALLY_RECEIVED", "RECEIVED", "CLOSED", "CANCELLED")
 DOCUMENT_TYPES = ("REQ", "AUTH", "OC", "GRN", "INV_MOV", "RES", "ADJ", "COST_POST", "VA")
+
+# El color es un indicador derivado, nunca un estado administrativo.
+# NONE se usa para borradores, documentos cerrados y ausencia de política.
+SLA_COLORS: tuple[str, ...] = ("GREEN", "YELLOW", "RED", "NONE")
+SLA_TERMINAL_STATUSES: tuple[str, ...] = ("REJECTED", "CANCELLED", "CLOSED")
+SLA_POLICY_SCOPES: tuple[str, ...] = ("GLOBAL", "DEPARTMENT", "TYPE", "DEPARTMENT+TYPE")

@@ -22,7 +22,7 @@ NULL_UUID = "00000000-0000-0000-0000-000000000000"
 REVISION_B1 = "b7c8d9e0f1a3"
 # Revisiones posteriores legítimas: el módulo documental es aditivo y no
 # invalida las garantías del Lote B.1 que esta prueba verifica.
-REVISIONES_POSTERIORES = {"c1d2e3f4a5b6"}
+REVISIONES_POSTERIORES = {"c1d2e3f4a5b6", "d2e3f4a5b6c7"}
 
 
 def _fetch_original(conn: object) -> dict[str, object]:

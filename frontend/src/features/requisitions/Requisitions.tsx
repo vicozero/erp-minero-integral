@@ -8,6 +8,7 @@ import type {
   RequisitionDraftUpdatePayload,
   RequisitionFilters,
   RequisitionPayload,
+  SlaEvaluation,
   WmsItem,
 } from '../../api/types';
 import { ItemPicker } from '../../components/ItemPicker';
@@ -22,6 +23,7 @@ import {
   PageHeader,
   Panel,
   PriorityBadge,
+  SlaBadge,
   StatusBadge,
   SuccessMessage,
 } from '../../components/ui';
@@ -58,6 +60,16 @@ const REQUISITION_TYPES: Array<{ value: RequisitionPayload['requisition_type']; 
   { value: 'STOCK', label: 'Almacén' },
   { value: 'PURCHASE', label: 'Compra directa' },
   { value: 'SERVICE', label: 'Servicio' },
+];
+
+const SLA_FILTERS: Array<{
+  value: NonNullable<RequisitionFilters['sla_color']>;
+  label: string;
+}> = [
+  { value: 'GREEN', label: 'En plazo' },
+  { value: 'YELLOW', label: 'En riesgo' },
+  { value: 'RED', label: 'Fuera de plazo' },
+  { value: 'NONE', label: 'Sin medición' },
 ];
 
 function emptyLine(catalogs: Catalogs | null): DraftLine {
@@ -107,6 +119,8 @@ export function Requisitions() {
   const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
   const [history, setHistory] = useState<{ documentNo: string; events: HistoryEvent[] } | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [slaHistory, setSlaHistory] = useState<{ documentNo: string; events: SlaEvaluation[] } | null>(null);
+  const [slaHistoryLoading, setSlaHistoryLoading] = useState(false);
   const [attachmentPanel, setAttachmentPanel] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<RequisitionAttachment[]>([]);
   const [filters, setFilters] = useState<RequisitionFilters>({});
@@ -312,6 +326,18 @@ export function Requisitions() {
       setError(describeApiError(cause, 'No fue posible cargar el historial.'));
     } finally {
       setHistoryLoading(false);
+    }
+  }
+
+  async function handleSlaHistory(req: Requisition): Promise<void> {
+    setSlaHistoryLoading(true);
+    setError(null);
+    try {
+      setSlaHistory({ documentNo: req.document_no, events: await api.slaHistory(req.id) });
+    } catch (cause) {
+      setError(describeApiError(cause, 'No fue posible cargar el historial SLA.'));
+    } finally {
+      setSlaHistoryLoading(false);
     }
   }
 
@@ -607,6 +633,19 @@ export function Requisitions() {
                 </select>
               </label>
               <label>
+                Semáforo SLA
+                <select
+                  value={filters.sla_color ?? ''}
+                  onChange={(e) => setFilters({
+                    ...filters,
+                    sla_color: (e.target.value || undefined) as RequisitionFilters['sla_color'],
+                  })}
+                >
+                  <option value="">Todos</option>
+                  {SLA_FILTERS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                </select>
+              </label>
+              <label>
                 Prioridad
                 <select value={filters.priority ?? ''} onChange={(e) => setFilters({ ...filters, priority: e.target.value || undefined })}>
                   <option value="">Todas</option>
@@ -668,7 +707,7 @@ export function Requisitions() {
                 <table>
                   <thead>
                     <tr>
-                      <th>Folio</th><th>Estado</th><th>Prioridad</th><th>Tipo</th>
+                      <th>Folio</th><th>Estado</th><th>Semáforo</th><th>Prioridad</th><th>Tipo</th>
                       <th>Partidas</th><th>Requerida</th><th>Justificación</th><th>Acciones</th>
                     </tr>
                   </thead>
@@ -677,6 +716,7 @@ export function Requisitions() {
                       <tr key={req.id} className={selectedDetail === req.id ? 'row-selected' : undefined}>
                         <td><strong>{req.document_no}</strong></td>
                         <td><StatusBadge status={req.status} /></td>
+                        <td><SlaBadge sla={req.sla} /></td>
                         <td><PriorityBadge priority={req.priority} /></td>
                         <td>{req.requisition_type}</td>
                         <td>{req.lines.length}</td>
@@ -744,6 +784,9 @@ export function Requisitions() {
                           <button className="button button-small button-ghost" type="button" onClick={() => void handleHistory(req)}>
                             Seguimiento
                           </button>
+                          <button className="button button-small button-ghost" type="button" onClick={() => void handleSlaHistory(req)}>
+                            Historial SLA
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -799,6 +842,35 @@ export function Requisitions() {
                       <small>
                         {formatDate(event.occurred_at)} · Actor {shortId(event.actor_id)}
                         {event.metadata ? ` · ${JSON.stringify(event.metadata).slice(0, 120)}` : ''}
+                      </small>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </Panel>
+          )}
+
+          {slaHistoryLoading && <Panel title="Historial SLA"><LoadingState rows={3} /></Panel>}
+          {slaHistory && (
+            <Panel
+              title={`Historial SLA de ${slaHistory.documentNo}`}
+              subtitle="Indicador calculado en backend; no sustituye al estado administrativo"
+              icon="alert"
+            >
+              {slaHistory.events.length === 0 ? (
+                <EmptyState text="Sin evaluaciones SLA registradas." />
+              ) : (
+                <ol className="timeline">
+                  {slaHistory.events.map((event) => (
+                    <li key={event.id}>
+                      <SlaBadge sla={event} />
+                      <span>{event.trigger.replaceAll('_', ' ')} · Ámbito {event.policy_scope}</span>
+                      <small>
+                        {formatDate(event.occurred_at)} · Transcurridas {formatNumber(event.elapsed_hours)} h ·
+                        Actor {shortId(event.actor_id)}
+                        {event.metadata_json
+                          ? ` · Estado ${String(event.metadata_json.administrative_status ?? '—')}`
+                          : ''}
                       </small>
                     </li>
                   ))}

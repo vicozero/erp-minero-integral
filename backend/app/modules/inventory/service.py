@@ -15,6 +15,7 @@ from app.modules.inventory.models import NULL_UUID, StockBalance, StockMovement,
 from app.modules.master_data.models import Item
 from app.modules.organization.models import Warehouse
 from app.modules.requisitions.models import Requisition, RequisitionLine
+from app.modules.sla.service import SlaService
 from app.shared.constants import APPROVABLE_STATUSES
 from app.shared.events import emit
 from app.shared.idempotency import acquire, complete
@@ -230,6 +231,7 @@ class InventoryService:
             detail="Todas las partidas fueron entregadas o canceladas.",
         )
         emit(db, "Requisition", req.id, "REQUISITION_CLOSED", {})
+        SlaService.record_snapshot(db, req, trigger="ON_CLOSE", actor_id=actor_id)
 
     @staticmethod
     def reserve(

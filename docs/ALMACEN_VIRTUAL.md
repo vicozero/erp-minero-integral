@@ -100,7 +100,7 @@ almacén y no formar ciclos.
 
 ## 5. Límites
 
-1. Plano 2D únicamente; 3D queda fuera del compromiso inicial.
+1. Plano 2D únicamente en este documento (Lote 3). La vista 3D interactiva y el inventario conectado se entregan en el Lote 6; véase `docs/RESULTADOS_LOTE6_ALMACEN_VIRTUAL.md` y la ruta `/almacen-virtual`.
 2. No hay captura móvil, escaneo con cámara ni `wms.scan_event`.
 3. No existen aún órdenes de movimiento (`wms.movement_order`): D-06 sigue sin aprobarse.
 4. El fondo es una referencia visual; no se mide ni se valida contra el almacén físico.

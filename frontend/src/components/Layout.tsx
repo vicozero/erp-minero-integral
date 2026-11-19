@@ -28,6 +28,7 @@ const navGroups: { label: string; items: NavItem[] }[] = [
       { to: '/requisiciones', label: 'Requisiciones', icon: 'requisitions', codes: PERM.VIEW_REQUISITIONS },
       { to: '/autorizaciones', label: 'Autorizaciones', icon: 'approve', codes: PERM.APPROVE_REQUISITIONS },
       { to: '/almacen', label: 'Almacén', icon: 'warehouse', codes: PERM.VIEW_INVENTORY },
+      { to: '/almacen-virtual', label: 'Almacén Virtual 2D/3D', icon: 'warehouse', codes: PERM.VIEW_MAPS },
       { to: '/vales', label: 'Vales de almacén', icon: 'requisitions', codes: PERM.VIEW_VOUCHERS },
       { to: '/semaforo', label: 'Semáforo SLA', icon: 'clock', codes: PERM.VIEW_SLA },
       { to: '/compras', label: 'Compras', icon: 'purchases', codes: PERM.VIEW_PURCHASES },

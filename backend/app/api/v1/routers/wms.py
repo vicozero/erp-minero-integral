@@ -12,6 +12,12 @@ from app.api.v1.deps import require_permission
 from app.db.session import get_db
 from app.modules.identity.models import AppUser
 from app.modules.identity.service import IdentityService
+from app.modules.inventory.wms_dashboard_schemas import (
+    LocationInventoryOut,
+    MaterialSearchResultOut,
+    WarehouseDashboardOut,
+)
+from app.modules.inventory.wms_dashboard_service import WmsDashboardService
 from app.modules.inventory.wms_map_schemas import (
     LocationCoordinatesOut,
     LocationLookupOut,
@@ -221,6 +227,59 @@ def location_detail(
     actor: AppUser = Depends(require_permission("warehouse.location.view")),
 ):
     return WmsCatalogService.location_detail(db, location_id, _allowed_warehouses(db, actor))
+
+
+# --- Almacén virtual interactivo: inventario, dashboard y búsqueda ---------
+
+
+@router.get("/locations/{location_id}/inventory", response_model=LocationInventoryOut)
+def location_inventory(
+    location_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    actor: AppUser = Depends(require_permission("warehouse.location.view")),
+):
+    can_view_cost = IdentityService.has_permission(db, actor.id, "warehouse.stock.view")
+    return WmsDashboardService.location_inventory(
+        db, location_id, _allowed_warehouses(db, actor), can_view_cost=can_view_cost
+    )
+
+
+@router.get("/dashboard", response_model=WarehouseDashboardOut)
+def dashboard(
+    warehouse_id: uuid.UUID | None = None,
+    zone: str | None = Query(default=None, max_length=20),
+    family_id: uuid.UUID | None = None,
+    db: Session = Depends(get_db),
+    actor: AppUser = Depends(require_permission("warehouse.map.view")),
+):
+    return WmsDashboardService.dashboard(
+        db,
+        _allowed_warehouses(db, actor),
+        warehouse_id=warehouse_id,
+        zone=zone,
+        family_id=family_id,
+    )
+
+
+@router.get("/materials/search", response_model=MaterialSearchResultOut)
+def material_search(
+    query: str = Query(min_length=2, max_length=120),
+    warehouse_id: uuid.UUID | None = None,
+    zone: str | None = Query(default=None, max_length=20),
+    family_id: uuid.UUID | None = None,
+    limit: int = Query(default=50, ge=1, le=100),
+    db: Session = Depends(get_db),
+    actor: AppUser = Depends(require_permission("catalog.view")),
+):
+    return WmsDashboardService.material_search(
+        db,
+        _allowed_warehouses(db, actor),
+        query=query,
+        warehouse_id=warehouse_id,
+        zone=zone,
+        family_id=family_id,
+        limit=limit,
+    )
 
 
 # --- Almacén virtual: mapa 2D versionado ----------------------------------

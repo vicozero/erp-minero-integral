@@ -40,6 +40,9 @@ import type {
   LocationMapVersion,
   LocationPayload,
   LocationQr,
+  LocationInventory,
+  MaterialSearchResult,
+  WarehouseDashboard,
   WmsItem,
   WmsItemDetail,
   WmsLocation,
@@ -378,6 +381,22 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
+
+  // --- Almacén virtual interactivo · inventario, dashboard y búsqueda -----
+  wmsLocationInventory: (locationId: string) =>
+    request<LocationInventory>(`/api/v1/wms/locations/${locationId}/inventory`),
+  wmsDashboard: (filters: {
+    warehouse_id?: string;
+    zone?: string;
+    family_id?: string;
+  } = {}) => request<WarehouseDashboard>(`/api/v1/wms/dashboard${queryString(filters)}`),
+  wmsMaterialSearch: (
+    query: string,
+    filters: { warehouse_id?: string; zone?: string; family_id?: string } = {},
+  ) =>
+    request<MaterialSearchResult>(
+      `/api/v1/wms/materials/search${queryString({ query, ...filters })}`,
+    ),
 
   // --- Almacén virtual · mapa 2D y QR ------------------------------------
   wmsLocationMap: (warehouseId: string) =>

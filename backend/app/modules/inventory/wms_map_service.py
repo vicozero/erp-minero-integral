@@ -172,6 +172,7 @@ class WmsMapService:
                 "status": item["status"],
                 "coord_x": item["coord_x"],
                 "coord_y": item["coord_y"],
+                "capacity_qty": item["capacity_qty"],
                 "occupied_qty": item["occupied_qty"],
                 "item_count": item["item_count"],
             }

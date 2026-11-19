@@ -19,6 +19,7 @@ import { SlaBoard } from './features/sla/SlaBoard';
 import { Traceability } from './features/trace/Traceability';
 import { Vouchers } from './features/vouchers/Vouchers';
 import { Locations } from './features/wms/Locations';
+import { WarehouseInteractive } from './features/wms/WarehouseInteractive';
 import { MyAccount } from './features/security/MyAccount';
 import { Permissions, Roles } from './features/security/RolesAndPermissions';
 
@@ -66,6 +67,10 @@ export default function App() {
             <Route
               path="catalogo"
               element={<RequirePermission codes={PERM.VIEW_CATALOG}><Catalog /></RequirePermission>}
+            />
+            <Route
+              path="almacen-virtual"
+              element={<RequirePermission codes={PERM.VIEW_MAPS}><WarehouseInteractive /></RequirePermission>}
             />
             <Route
               path="ubicaciones"

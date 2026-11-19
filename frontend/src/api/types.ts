@@ -586,6 +586,8 @@ export interface LocationMapNode {
   status: string;
   coord_x: string | null;
   coord_y: string | null;
+  /** Capacidad definida; 0 cuando no hay capacidad declarada. */
+  capacity_qty: string;
   occupied_qty: string;
   item_count: number;
 }
@@ -655,6 +657,150 @@ export interface LocationRestriction {
 export interface WmsLocationDetail extends WmsLocation {
   restrictions: LocationRestriction[];
   items: StockLocationBalance[];
+}
+
+// --- Almacén virtual interactivo (Lote 6) ----------------------------------
+
+export interface WmsLastMovement {
+  id: string;
+  movement_no: string;
+  movement_type: string;
+  direction: string;
+  quantity: string;
+  balance_after_qty: string;
+  posted_at: string;
+  source_document_type: string;
+}
+
+export interface LocationInventoryItem {
+  item_id: string;
+  code: string;
+  description: string;
+  manufacturer_part_no: string | null;
+  internal_code: string | null;
+  lot_number: string | null;
+  serial_number: string | null;
+  on_hand_qty: string;
+  reserved_qty: string;
+  available_qty: string;
+  uom_code: string;
+  /** Sólo se envía cuando el usuario tiene permiso de costo. */
+  unit_cost: string | null;
+  last_movement: WmsLastMovement | null;
+}
+
+export interface LocationInventoryRestriction extends LocationRestriction {
+  item_family_name: string | null;
+  item_code: string | null;
+  temperature_min: string | null;
+  temperature_max: string | null;
+}
+
+export interface LocationInventory {
+  location_id: string;
+  warehouse_id: string;
+  warehouse_code: string;
+  code: string;
+  hierarchy_path: string;
+  zone: string | null;
+  aisle: string | null;
+  rack: string | null;
+  level: string | null;
+  position: string | null;
+  location_type: string;
+  status: string;
+  is_pickable: boolean;
+  is_receivable: boolean;
+  coord_x: string | null;
+  coord_y: string | null;
+  capacity_qty: string;
+  occupied_qty: string;
+  occupancy_pct: string | null;
+  item_count: number;
+  items: LocationInventoryItem[];
+  last_movement: WmsLastMovement | null;
+  restrictions: LocationInventoryRestriction[];
+  can_view_cost: boolean;
+  is_empty: boolean;
+}
+
+export interface DashboardTotals {
+  location_count: number;
+  occupied: number;
+  empty: number;
+  blocked: number;
+  inactive: number;
+  capacity_defined_count: number;
+  capacity_qty: string;
+  occupied_in_capacity_qty: string;
+  capacity_used_pct: string | null;
+}
+
+export interface StockAlert {
+  item_id: string;
+  code: string;
+  description: string;
+  uom_code: string;
+  on_hand_qty: string;
+  reorder_point: string | null;
+  safety_stock: string | null;
+  location_count: number;
+  reason: string;
+}
+
+export interface UnlocatedMaterial {
+  item_id: string;
+  code: string;
+  description: string;
+  uom_code: string;
+  on_hand_qty: string;
+}
+
+export interface WarehouseDashboard {
+  warehouse_id: string | null;
+  zone: string | null;
+  family_id: string | null;
+  totals: DashboardTotals;
+  alerts: {
+    critical: StockAlert[];
+    below_minimum: StockAlert[];
+    unlocated: UnlocatedMaterial[];
+  };
+}
+
+export interface MaterialLocation {
+  location_id: string;
+  location_code: string;
+  hierarchy_path: string;
+  zone: string | null;
+  aisle: string | null;
+  rack: string | null;
+  level: string | null;
+  position: string | null;
+  coord_x: string | null;
+  coord_y: string | null;
+  status: string;
+  on_hand_qty: string;
+  reserved_qty: string;
+  available_qty: string;
+}
+
+export interface MaterialSearchResult {
+  query: string;
+  materials: Array<{
+    item_id: string;
+    code: string;
+    description: string;
+    manufacturer_part_no: string | null;
+    internal_code: string | null;
+    family_name: string | null;
+    uom_code: string;
+    on_hand_qty: string;
+    available_qty: string;
+    location_count: number;
+    locations: MaterialLocation[];
+  }>;
+  location_ids: string[];
 }
 
 export interface LocationPayload {

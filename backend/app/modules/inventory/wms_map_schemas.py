@@ -28,6 +28,7 @@ class LocationMapNode(ORMModel):
     status: str
     coord_x: Decimal | None
     coord_y: Decimal | None
+    capacity_qty: Decimal
     occupied_qty: Decimal
     item_count: int
 

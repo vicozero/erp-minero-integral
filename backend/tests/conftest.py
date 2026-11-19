@@ -65,6 +65,10 @@ def reset_test_database(engine: Engine) -> None:
     schemas = ("seg", "org", "mdm", "doc", "req", "wfl", "inv", "pur", "mnt", "cost", "intg", "aud")
     session = SessionClass(engine, expire_on_commit=False)
     try:
+        database = session.execute(text("SELECT current_database()")).scalar_one()
+        if database != TEST_DATABASE_NAME:
+            raise RuntimeError(f"El reset de pruebas requiere {TEST_DATABASE_NAME}, obtuvo {database}")
+
         schema_list = ", ".join(f"'{schema}'" for schema in schemas)
         tables = [
             row[0]
@@ -76,6 +80,10 @@ def reset_test_database(engine: Engine) -> None:
             )
         ]
         if tables:
+            # B.1 protege inv.stock_movement contra TRUNCATE accidental. El arnés
+            # de pruebas es el único habilitado para limpiar la base sintética,
+            # y lo hace con una bandera local a esta transacción.
+            session.execute(text("SET LOCAL inv.allow_maintenance_truncate = 'on'"))
             session.execute(text(f"TRUNCATE TABLE {', '.join(tables)} RESTART IDENTITY CASCADE"))
         seed_demo_data(session)
         session.commit()

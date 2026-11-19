@@ -140,6 +140,10 @@ def _reset_test_db(engine) -> None:
     schemas = ("seg", "org", "mdm", "doc", "req", "wfl", "inv", "pur", "mnt", "cost", "intg", "aud")
     session = Session(engine, expire_on_commit=False)
     try:
+        database = session.execute(text("SELECT current_database()")).scalar_one()
+        if database != "erp_minero_test":
+            raise RuntimeError(f"El reset de pruebas requiere erp_minero_test, obtuvo {database}")
+
         schema_list = ", ".join(f"'{schema}'" for schema in schemas)
         tables = [
             row[0]
@@ -151,6 +155,9 @@ def _reset_test_db(engine) -> None:
             )
         ]
         if tables:
+            # B.1 protege inv.stock_movement; solo el arnés de pruebas puede
+            # limpiar la base sintética con esta bandera local a la transacción.
+            session.execute(text("SET LOCAL inv.allow_maintenance_truncate = 'on'"))
             session.execute(text(f"TRUNCATE TABLE {', '.join(tables)} RESTART IDENTITY CASCADE"))
         seed_demo_data(session)
         session.commit()

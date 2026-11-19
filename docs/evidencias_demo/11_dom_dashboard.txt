@@ -1,0 +1,31 @@
+Evidencia real del DOM del portal local (http://127.0.0.1:8080), sesión demo.admin, capturada el 19/11/2026. No contiene credenciales.
+
+Centro de operaciones
+Indicadores calculados únicamente desde la API local del ERP
+DEMOSTRACIÓN · Datos sintéticos aislados
+Última lectura: 19/11/2026, 6:34:19 a.m. · sin refresco automático.
+
+Requisiciones — 1 — Documentos en el alcance del usuario
+Autorizaciones pendientes — 0 — Ir a la bandeja de autorizaciones
+Autorizadas — 1 — Listas para surtir
+Órdenes de compra — 0 — 0 abiertas o parciales
+Materiales pendientes — 2 — Partidas con saldo por entregar
+Tiempo medio de autorización — 0.0 h — Desde enviado hasta autorizado
+
+Solicitudes por estado
+Autorizada parcial — 1
+
+Cumplimiento de surtido por unidad
+UNIDAD | PARTIDAS | SOLICITADO | AUTORIZADO | ENTREGADO | PENDIENTE | SURTIDO
+UND    | 2        | 16         | 10         | 0         | 10        |
+
+Indicadores no disponibles con la API actual
+- Monto autorizado y valuación: las líneas de requisición no exponen importes ni costo enlazado.
+- Cumplimiento de SLA: no existe una política de plazos aprobada en el backend.
+- Existencias globales y rupturas: solo hay disponibilidad por artículo y almacén, sin agregado.
+- Solicitante por documento: el contrato de requisición no expone al solicitante.
+
+Actividad reciente
+Últimas requisiciones
+REQ-LAG-2026-000001 | NORMAL | 2 | Autorizada parcial | 19/11/2026, 6:31:02 a.m.
+Bitácora reciente: LOGIN, REQUISITION_DECIDE, REQUISITION_SUBMIT, REQUISITION_CREATE con actor y timestamp reales.

@@ -93,7 +93,7 @@ def main() -> int:
     status, _, _ = request_json(opener, f"{base_url}/health/db")
     check("GET /health/db", status == 200, f"HTTP {status}")
 
-    for route in ("/", "/login", "/requisiciones"):
+    for route in ("/", "/login", "/requisiciones", "/autorizaciones", "/historial", "/catalogo", "/ubicaciones", "/almacen"):
         status, _, body = request_json(opener, f"{base_url}{route}")
         check(f"Ruta SPA {route}", status == 200 and b'id="root"' in body, f"HTTP {status}")
 
@@ -133,6 +133,23 @@ def main() -> int:
         check("Cookies Secure bajo HTTPS", "Secure" in raw_set_cookie)
     else:
         check("Cookies sin Secure en HTTP local", "Secure" not in raw_set_cookie)
+
+    status, _, body = request_json(opener, f"{base_url}/api/v1/requisitions")
+    requisitions = json.loads(body) if status == 200 and body else []
+    check("API: listado de requisiciones", status == 200 and isinstance(requisitions, list), f"HTTP {status}")
+
+    status, _, body = request_json(opener, f"{base_url}/api/v1/audit?limit=5")
+    check("API: bitácora de auditoría", status == 200 and body, f"HTTP {status}")
+
+    if requisitions:
+        requisition_id = requisitions[0]["id"]
+        status, _, body = request_json(
+            opener, f"{base_url}/api/v1/requisitions/{requisition_id}/history"
+        )
+        events = json.loads(body) if status == 200 and body else []
+        check("API: historial de requisición", status == 200 and isinstance(events, list), f"HTTP {status}")
+    else:
+        check("API: historial de requisición", True, "sin documentos para consultar")
 
     status, _, body = request_json(opener, f"{base_url}/api/v1/wms/families")
     families = json.loads(body) if status == 200 and body else []

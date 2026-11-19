@@ -1,5 +1,6 @@
 import type {
   AdminUser,
+  ApprovalDecision,
   AuditEntry,
   Availability,
   Catalogs,
@@ -11,6 +12,7 @@ import type {
   PurchaseOrder,
   Requisition,
   RequisitionAttachment,
+  RequisitionDraftUpdatePayload,
   RequisitionFilters,
   RequisitionPayload,
   Role,
@@ -58,6 +60,25 @@ export class ApiError extends Error {
   constructor(message: string, readonly status: number) {
     super(message);
     this.name = 'ApiError';
+  }
+}
+
+/** Traduce fallos HTTP a mensajes accionables sin exponer datos sensibles. */
+export function describeApiError(cause: unknown, fallback: string): string {
+  if (!(cause instanceof ApiError)) {
+    return cause instanceof Error ? cause.message : fallback;
+  }
+  switch (cause.status) {
+    case 401:
+      return 'La sesión ha caducado. Inicie sesión nuevamente.';
+    case 403:
+      return `Sin permiso para esta operación. ${cause.message}`.trim();
+    case 409:
+      return `Conflicto con el estado actual del documento: ${cause.message}`;
+    case 422:
+      return `Revise los datos capturados: ${cause.message}`;
+    default:
+      return cause.message || fallback;
   }
 }
 
@@ -162,21 +183,12 @@ export const api = {
     }),
   submitRequisition: (id: string) =>
     request<Requisition>(`/api/v1/requisitions/${id}/submit`, { method: 'POST' }),
-  decideRequisition: (
-    id: string,
-    decisions: Array<{
-      requisition_line_id: string;
-      decision: 'APPROVE' | 'REJECT';
-      approved_qty?: string;
-      reason?: string;
-    }>,
-    reason?: string,
-  ) =>
+  decideRequisition: (id: string, decisions: ApprovalDecision[], reason?: string) =>
     request<Requisition>(`/api/v1/requisitions/${id}/decide`, {
       method: 'POST',
       body: JSON.stringify({ decisions, reason }),
     }),
-  updateRequisitionDraft: (id: string, payload: RequisitionPayload) =>
+  updateRequisitionDraft: (id: string, payload: RequisitionDraftUpdatePayload) =>
     request<Requisition>(`/api/v1/requisitions/${id}/draft`, {
       method: 'PATCH',
       body: JSON.stringify(payload),

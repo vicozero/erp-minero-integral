@@ -1,0 +1,22 @@
+Evidencia real del DOM del portal local (http://127.0.0.1:8080/historial), sesión demo.admin, capturada el 19/11/2026. No contiene credenciales.
+
+Historial y seguimiento
+Eventos documentales de requisiciones y bitácora de auditoría de solo lectura
+
+Eventos de requisición — La línea de tiempo muestra actor y transición de estado
+Requisición: REQ-LAG-2026-000001 — Autorizada parcial — 2 partida(s) — STOCK
+
+DOCUMENT NUMBER ISSUED | — → ISSUED | 19/11/2026, 6:31:02 a.m. | Actor sistema | {}
+REQUISITION CREATED | — → DRAFT | 19/11/2026, 6:31:02 a.m. | Actor 044df34c | {}
+REQUISITION SUBMITTED | DRAFT → SUBMITTED | 19/11/2026, 6:31:02 a.m. | Actor 044df34c | {}
+REQUISITION DECIDED | SUBMITTED → PARTIALLY_APPROVED | 19/11/2026, 6:31:02 a.m. | Actor 3ae5c0b1 | {"reason":"Autorización parcial de verificación","omitted_lines":0}
+
+Bitácora de auditoría — Registro inmutable; no se puede editar desde la aplicación
+Filtros: Acción (Todas/CREATE/UPDATE/SUBMIT/APPROVE/REJECT/CANCEL/ISSUE), Límite (50/100/200/500), [Aplicar filtros]
+
+FECHA | ACTOR | ACCIÓN | ENTIDAD | DETALLE | SOLICITUD
+19/11/2026, 6:31:02 a.m. | demo.aprobador | REQUISITION_DECIDE | Requisition · 48228cce | Autorización parcial de verificación | c3ed4726
+19/11/2026, 6:31:02 a.m. | demo.solicitante | REQUISITION_SUBMIT | Requisition · 48228cce | — | c807584b
+19/11/2026, 6:31:02 a.m. | demo.solicitante | REQUISITION_CREATE | Requisition · 48228cce | — | 3cc44b7e
+
+Los identificadores de actor y solicitud se truncan en la interfaz para evitar saturar la tabla; la base de datos conserva los UUID completos.

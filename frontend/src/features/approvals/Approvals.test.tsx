@@ -1,8 +1,10 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { api } from '../../api/client';
+import { api, ApiError } from '../../api/client';
 import type { Requisition } from '../../api/types';
 import { Approvals } from './Approvals';
+
+const UOM_ID = '11111111-1111-1111-1111-111111111111';
 
 function line(id: string, lineNo: number, qty: string) {
   return {
@@ -10,7 +12,7 @@ function line(id: string, lineNo: number, qty: string) {
     line_no: lineNo,
     item_id: null,
     description: `Artículo ${lineNo}`,
-    uom_id: '11111111-1111-1111-1111-111111111111',
+    uom_id: UOM_ID,
     requested_qty: qty,
     authorised_qty: '0',
     cancelled_qty: '0',
@@ -51,6 +53,16 @@ function requisition(): Requisition {
 function mockApi(resultStatus = 'PARTIALLY_APPROVED') {
   const req = requisition();
   const list = vi.spyOn(api, 'requisitions').mockResolvedValue([req]);
+  vi.spyOn(api, 'catalogs').mockResolvedValue({
+    mining_units: [],
+    departments: [{ id: 'dep-1', code: 'DEP', name: 'Mantenimiento' }],
+    warehouses: [],
+    items: [],
+    uoms: [{ id: UOM_ID, code: 'UND', name: 'Unidad' }],
+    suppliers: [],
+    cost_centers: [{ id: 'cost-1', code: 'CC', name: 'Costo' }],
+    equipment: [],
+  });
   const decide = vi
     .spyOn(api, 'decideRequisition')
     .mockResolvedValue({ ...req, status: resultStatus });
@@ -67,11 +79,13 @@ describe('Autorización parcial por partida', () => {
     render(<Approvals />);
 
     await screen.findByRole('heading', { name: /REQ-LAG-2026-000001/ });
+    expect(screen.getAllByText('UND')).toHaveLength(2);
     fireEvent.click(screen.getByLabelText('Incluir partida 2'));
     fireEvent.change(screen.getByLabelText('Cantidad a autorizar de la partida 1'), {
       target: { value: '7.5' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Autorizar seleccionadas' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sí, autorizar seleccionadas' }));
 
     await waitFor(() => expect(decide).toHaveBeenCalledTimes(1));
     const [, decisions] = decide.mock.calls[0];
@@ -99,6 +113,7 @@ describe('Autorización parcial por partida', () => {
       target: { value: 'Falta de presupuesto' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Rechazar seleccionadas' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sí, rechazar seleccionadas' }));
 
     await waitFor(() => expect(decide).toHaveBeenCalledTimes(1));
     const [, decisions] = decide.mock.calls[0];
@@ -115,5 +130,30 @@ describe('Autorización parcial por partida', () => {
         reason: 'Falta de presupuesto',
       }),
     ]);
+  });
+
+  it('no registra dos decisiones si se pulsa dos veces la acción', async () => {
+    const { decide } = mockApi();
+    render(<Approvals />);
+
+    await screen.findByRole('heading', { name: /REQ-LAG-2026-000001/ });
+    const action = screen.getByRole('button', { name: 'Autorizar todo' });
+    fireEvent.click(action);
+    fireEvent.click(action);
+    fireEvent.click(screen.getByRole('button', { name: 'Sí, autorizar todo' }));
+
+    await waitFor(() => expect(decide).toHaveBeenCalledTimes(1));
+  });
+
+  it('muestra un mensaje accionable cuando el backend devuelve 403', async () => {
+    mockApi();
+    vi.spyOn(api, 'decideRequisition').mockRejectedValue(new ApiError('Permiso requerido: requisition.approve', 403));
+    render(<Approvals />);
+
+    await screen.findByRole('heading', { name: /REQ-LAG-2026-000001/ });
+    fireEvent.click(screen.getByRole('button', { name: 'Autorizar todo' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sí, autorizar todo' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Sin permiso para esta operación/i);
   });
 });

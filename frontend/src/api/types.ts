@@ -227,6 +227,30 @@ export interface RequisitionPayload {
   }>;
 }
 
+/** Campos aceptados por PATCH /requisitions/{id}/draft (el resto se ignora). */
+export interface RequisitionDraftUpdatePayload {
+  justification: string;
+  priority?: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
+  observations?: string | null;
+  needed_at?: string | null;
+  work_order_no?: string | null;
+  lines: Array<{
+    id?: string;
+    item_id?: string | null;
+    description: string;
+    uom_id: string;
+    requested_qty: string;
+    notes?: string | null;
+  }>;
+}
+
+export interface ApprovalDecision {
+  requisition_line_id: string;
+  decision: 'APPROVE' | 'REJECT';
+  approved_qty?: string;
+  reason?: string;
+}
+
 export interface UserCreatePayload {
   username: string;
   email: string;

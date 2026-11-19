@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
+import type { Requisition } from '../api/types';
 import { Icon } from './Icon';
 
 export function PageHeader({
@@ -30,7 +31,7 @@ export function Panel({
   title: string;
   children: ReactNode;
   subtitle?: string;
-  icon?: 'box' | 'chart' | 'truck' | 'location' | 'requisitions' | 'warehouse' | 'history' | 'trend' | 'approve' | 'search';
+  icon?: 'box' | 'chart' | 'truck' | 'location' | 'requisitions' | 'warehouse' | 'history' | 'trend' | 'approve' | 'search' | 'alert' | 'audit';
 }) {
   return (
     <section className="panel">
@@ -41,7 +42,7 @@ export function Panel({
   );
 }
 
-const STATUS_LABELS: Record<string, string> = {
+export const STATUS_LABELS: Record<string, string> = {
   DRAFT: 'Borrador',
   SUBMITTED: 'Enviada',
   APPROVED: 'Autorizada',
@@ -164,4 +165,133 @@ export function formatNumber(value: string | number | null | undefined): string 
   const number = Number(value);
   if (Number.isNaN(number)) return String(value);
   return new Intl.NumberFormat('es-MX', { maximumFractionDigits: 6 }).format(number);
+}
+
+export const PRIORITY_LABELS: Record<string, string> = {
+  LOW: 'Baja',
+  NORMAL: 'Normal',
+  HIGH: 'Alta',
+  URGENT: 'Crítica',
+};
+
+export function PriorityBadge({ priority }: { priority: string }) {
+  return (
+    <span className={`badge priority-${priority.toLowerCase()}`}>
+      {PRIORITY_LABELS[priority] ?? priority.replaceAll('_', ' ')}
+    </span>
+  );
+}
+
+export function InlineFieldError({ message }: { message: string | null | undefined }) {
+  if (!message) return null;
+  return <small className="field-error" role="alert">{message}</small>;
+}
+
+/**
+ * Confirmación accesible para acciones sensibles. El motivo solo se solicita
+ * cuando la operación lo requiere (por ejemplo, cancelar una requisición).
+ */
+export function ConfirmDialog({
+  title,
+  message,
+  confirmLabel = 'Confirmar',
+  needsReason = false,
+  reasonLabel = 'Motivo',
+  minReasonLength = 4,
+  onConfirm,
+  onCancel,
+}: {
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  needsReason?: boolean;
+  reasonLabel?: string;
+  minReasonLength?: number;
+  onConfirm: (reason: string) => void;
+  onCancel: () => void;
+}) {
+  const [reason, setReason] = useState('');
+  const invalidReason = needsReason && reason.trim().length < minReasonLength;
+  return (
+    <div className="modal-backdrop" role="presentation">
+      <div className="modal-card" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+        <h3 id="confirm-title">{title}</h3>
+        <p>{message}</p>
+        {needsReason && (
+          <label>
+            {reasonLabel}
+            <textarea
+              value={reason}
+              minLength={minReasonLength}
+              onChange={(event) => setReason(event.target.value)}
+            />
+            <InlineFieldError
+              message={invalidReason && reason.length > 0 ? `Indique al menos ${minReasonLength} caracteres.` : null}
+            />
+          </label>
+        )}
+        <div className="form-actions">
+          <button className="button button-secondary" type="button" onClick={onCancel}>
+            Cancelar
+          </button>
+          <button
+            className="button button-primary"
+            type="button"
+            disabled={invalidReason}
+            onClick={() => onConfirm(reason.trim())}
+          >
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Control de cantidades derivado del backend; nunca se captura manualmente. */
+export function LineQuantitiesTable({ requisitions }: { requisitions: Requisition[] }) {
+  const lines = requisitions.flatMap((req) => req.lines.map((line) => ({ req, line })));
+  if (lines.length === 0) return <EmptyState text="No hay partidas para mostrar." />;
+  return (
+    <div className="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Requisición</th>
+            <th>Partida</th>
+            <th>Estado</th>
+            <th>Solicitada</th>
+            <th>Autorizada</th>
+            <th>Entregada</th>
+            <th>Pendiente</th>
+            <th>Surtido</th>
+          </tr>
+        </thead>
+        <tbody>
+          {lines.map(({ req, line }) => {
+            const authorised = Number(line.authorised_qty) || 0;
+            const delivered = Number(line.delivered_qty) || 0;
+            return (
+              <tr key={`${req.id}-${line.id}`}>
+                <td>{req.document_no}</td>
+                <td>{line.line_no}</td>
+                <td><StatusBadge status={line.status} /></td>
+                <td>{formatNumber(line.requested_qty)}</td>
+                <td>{formatNumber(line.authorised_qty)}</td>
+                <td>{formatNumber(line.delivered_qty)}</td>
+                <td>{formatNumber(line.pending_qty)}</td>
+                <td className="progress-cell">
+                  <ProgressBar
+                    value={delivered}
+                    max={authorised}
+                    tone={delivered >= authorised && authorised > 0 ? 'success' : 'default'}
+                  />
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
 }

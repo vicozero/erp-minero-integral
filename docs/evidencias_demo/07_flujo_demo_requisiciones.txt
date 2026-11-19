@@ -1,0 +1,14 @@
+Documento sintético verificado: REQ-LAG-2026-000003
+[OK] Login solicitante demo
+[OK] Login aprobador demo
+[OK] Login administrador demo
+[OK] Catálogos para la captura — 3 artículos disponibles
+[OK] Creación de requisición de prueba — HTTP 201
+[OK] Envío a autorización — HTTP 200
+[OK] Dos partidas disponibles para decisión — 2 partida(s)
+[OK] Autorización parcial por partida — HTTP 200 · PARTIALLY_APPROVED
+[OK] Estados de partida derivados — PARTIAL, AUTHORISED
+[OK] Seguimiento por partida — 2 partida(s) pendiente(s)
+[OK] Historial del documento — DOCUMENT_NUMBER_ISSUED, REQUISITION_CREATED, REQUISITION_SUBMITTED, REQUISITION_DECIDED
+
+Resultado: 11/11 verificaciones del circuito correctas.

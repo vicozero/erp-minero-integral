@@ -1,0 +1,33 @@
+> erp-minero-frontend@0.1.0 test
+> vitest --run
+
+
+ RUN  v2.1.9 E:/ERP_MINERO/frontend
+
+ ✓ src/features/catalog/Catalog.test.tsx (2 tests) 854ms
+   ✓ Catálogo WMS > busca por texto y muestra la ficha con ubicación y lote 743ms
+ ✓ src/features/approvals/Approvals.test.tsx (4 tests) 1239ms
+   ✓ Autorización parcial por partida > envía la cantidad editada y deja en cero la partida no seleccionada 692ms
+ ✓ src/features/requisitions/Requisitions.test.tsx (5 tests) 1747ms
+   ✓ Mejora de requisiciones > busca artículos por número de parte y completa la partida 940ms
+   ✓ Mejora de requisiciones > valida la cantidad por partida antes de enviar 307ms
+stderr | src/features/dashboard/Dashboard.test.tsx > Dashboard con datos reales de API > calcula pendientes, surtido por unidad y tiempo medio de autorización
+⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+ ✓ src/features/dashboard/Dashboard.test.tsx (2 tests) 609ms
+   ✓ Dashboard con datos reales de API > calcula pendientes, surtido por unidad y tiempo medio de autorización 501ms
+ ✓ src/features/history/History.test.tsx (2 tests) 325ms
+ ✓ src/features/wms/Locations.test.tsx (3 tests) 992ms
+   ✓ Ubicaciones WMS > muestra ocupación derivada y el token de etiqueta en la ficha 639ms
+ ✓ src/api/client.test.ts (3 tests) 14ms
+stderr | src/App.test.tsx > Pantalla de acceso > muestra el formulario con las cuentas ficticias disponibles
+⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+
+ ✓ src/App.test.tsx (4 tests) 305ms
+
+ Test Files  8 passed (8)
+      Tests  25 passed (25)
+   Start at  06:38:51
+   Duration  15.69s (transform 1.11s, setup 3.71s, collect 3.99s, tests 6.08s, environment 21.95s, prepare 2.59s)

@@ -1,0 +1,32 @@
+[OK] GET /health detrás del proxy — HTTP 200
+[OK] Cabeceras de seguridad — X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Content-Security-Policy
+[OK] GET /health/db — HTTP 200
+[OK] Ruta SPA / — HTTP 200
+[OK] Ruta SPA /login — HTTP 200
+[OK] Ruta SPA /requisiciones — HTTP 200
+[OK] Ruta SPA /autorizaciones — HTTP 200
+[OK] Ruta SPA /historial — HTTP 200
+[OK] Ruta SPA /catalogo — HTTP 200
+[OK] Ruta SPA /ubicaciones — HTTP 200
+[OK] Ruta SPA /almacen — HTTP 200
+[OK] Referencia al bundle React
+[OK] Recurso estático JS — HTTP 200
+[OK] API relativa en el bundle — sin origen hard-codeado
+[OK] Content-Type del bundle
+[OK] Login a través del proxy — HTTP 200
+[OK] Cookie de sesión HttpOnly
+[OK] Cookie CSRF disponible
+[OK] SameSite configurado
+[OK] Cookies sin Secure en HTTP local
+[OK] API: listado de requisiciones — HTTP 200
+[OK] API: bitácora de auditoría — HTTP 200
+[OK] API: historial de requisición — HTTP 200
+[OK] WMS: familias de catálogo — HTTP 200
+[OK] WMS: búsqueda avanzada con existencia — HTTP 200
+[OK] WMS: ubicaciones con ocupación — HTTP 200
+[OK] WMS: ficha de material — HTTP 200
+[OK] CSRF exigido en escrituras — HTTP 403
+[OK] Logout con CSRF válido — HTTP 204
+[OK] Sesión cerrada — HTTP 401
+
+Resultado: 30/30 verificaciones correctas.

@@ -1,0 +1,30 @@
+Evidencia real del DOM del portal local (http://127.0.0.1:8080/autorizaciones), sesión demo.admin, capturada el 19/11/2026. El documento fue creado con el endpoint real y datos sintéticos; no se aprobó desde la UI. No contiene credenciales.
+
+Autorizaciones
+Bandeja de requisiciones enviadas · decisión por partida con confirmación
+
+Pendientes — 1 — Documentos enviados
+Partidas por revisar — 2 — Decisión individual
+Prioridad crítica/alta — 1 — 0 crítica(s)
+
+Criterios de bandeja
+El backend vuelve a validar permisos, rol y estado
+Buscar folio o justificación; Prioridad; Departamento; Motivo general (obligatorio en rechazos)
+
+REQ-LAG-2026-000002 · HIGH
+2 partida(s) · recibida 19/11/2026, 6:35:03 a.m.
+Prioridad: Alta | Estado: Enviada | Departamento: Mina Demo
+Almacén: Almacén principal demo | Equipo: No asignado
+Centro de costo: Centro de costo mina demo | Fecha requerida: —
+Orden de trabajo: — | Solicitante: No disponible en la API actual
+Observaciones: Documento sintético para demostración
+Justificación: Evidencia visual de bandeja de autorizaciones
+[Ocultar partidas] [Seleccionar todas] [Seleccionar ninguna] [Historial]
+
+INCLUIR | # | ARTÍCULO | SOLICITADA | AUTORIZAR | MOTIVO POR PARTIDA | UOM | NOTAS
+[check] | 1 | Partida evidencia A | 8 | [8] | | UND | —
+[check] | 2 | Partida evidencia B | 3 | [3] | | UND | —
+
+[Autorizar seleccionadas] [Autorizar todo] [Rechazar seleccionadas] [Rechazar todo]
+
+Cada acción abre un diálogo de confirmación antes de POST /decide; no se registró ninguna decisión sobre este documento durante la captura.

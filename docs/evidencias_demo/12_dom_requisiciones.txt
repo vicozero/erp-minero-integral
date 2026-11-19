@@ -1,0 +1,20 @@
+Evidencia real del DOM del portal local (http://127.0.0.1:8080/requisiciones), sesión demo.admin, capturada el 19/11/2026. No contiene credenciales.
+
+Requisiciones
+Captura guiada, borradores, autorización y seguimiento por partida
+[Nueva requisición]
+
+Filtros de seguimiento: Folio, Estado, Prioridad, Departamento, Equipo, Desde, Hasta, [Aplicar filtros] [Limpiar]
+
+Listado de requisiciones
+1 documento(s) en el alcance del usuario
+FOLIO | ESTADO | PRIORIDAD | TIPO | PARTIDAS | REQUERIDA | JUSTIFICACIÓN | ACCIONES
+REQ-LAG-2026-000001 | Autorizada parcial | Normal | STOCK | 2 | — | Verificación automatizada del circuito demo | Detalle, Cancelar, Adjuntos, Seguimiento
+
+Control de cantidades por partida
+Solicitado, autorizado y surtido derivado de movimientos
+REQUISICIÓN | PARTIDA | ESTADO | SOLICITADA | AUTORIZADA | ENTREGADA | PENDIENTE | SURTIDO
+REQ-LAG-2026-000001 | 1 | Parcial | 10 | 4 | 0 | 4 |
+REQ-LAG-2026-000001 | 2 | Autorizada | 6 | 6 | 0 | 6 |
+
+Las cantidades mostradas provienen del backend; la pantalla no permite capturar autorizado, entregado ni pendiente.

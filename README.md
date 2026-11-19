@@ -110,11 +110,11 @@ npm.cmd run build
 
 Resultados obtenidos en el entorno de desarrollo:
 
-- Backend: 18 pruebas recopiladas, 17 ejecutadas y aprobadas, 1 omitida (concurrencia transaccional).
-- Backend: `ruff check` y `mypy app` sin errores.
-- Frontend: 1 prueba aprobada y compilación de producción correcta.
+- Backend: 100 pruebas aprobadas con PostgreSQL real (`erp_minero_test`); no se usa SQLite.
+- Backend: `ruff check` y `mypy` sin errores en el módulo documental y sus pruebas.
+- Frontend: 1 prueba aprobada y compilación de producción correcta (verificación previa al Lote 1).
 
-Las pruebas de integración que requieren PostgreSQL se omiten automáticamente si no hay `DATABASE_URL`. La lógica de dominio se prueba con una base SQLite en memoria usando el mismo modelo de datos.
+Las pruebas requieren `DATABASE_URL` y aplican migraciones Alembic antes de ejecutarse; el arnés solo permite la base `erp_minero_test` y restaura datos sintéticos.
 
 ## Flujo funcional cubierto
 
@@ -125,6 +125,9 @@ Las pruebas de integración que requieren PostgreSQL se omiten automáticamente 
 5. Comprador genera OC por faltantes, la aprueba y registra recepciones parciales.
 6. Las recepciones entran a inventario y permiten completar entregas pendientes.
 7. Todas las operaciones quedan en bitácora y con número de documento único.
+8. Los vales de salida y las requisiciones se exportan a PDF/XLSX con plantillas versionadas, folio único y reimpresión de la versión emitida; la descarga no mueve inventario.
+
+Detalle de formatos: `docs/VALES_ALMACEN_FORMATOS.md`, `docs/REQUISICIONES_FORMATOS.md`, `docs/RESULTADOS_MODULO_DOCUMENTAL.md` y evidencias en `docs/EVIDENCIA_FORMATOS/`.
 
 ## Estado de implementación
 

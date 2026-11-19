@@ -91,6 +91,13 @@ PERMISSIONS_WMS_LOTE_B: tuple[str, ...] = (
     + PERMISSIONS_WMS_LOTE_B_VIEW
 )
 
+# Módulo documental: emisión de folios VA, render PDF/XLSX y consulta controlada.
+PERMISSIONS_DOCUMENTAL: tuple[str, ...] = (
+    "document.render",
+    "warehouse.voucher.create",
+    "warehouse.voucher.issue",
+)
+
 # Aliases en español de los permisos operativos del Lote B. Se conserva
 # `almacenes.kardex -> inventory.kardex.view` para no romper el contrato actual.
 PERMISSIONS_WMS_LOTE_B_ALIASES: tuple[str, ...] = (
@@ -111,6 +118,7 @@ PERMISSIONS: tuple[str, ...] = (
     + PERMISSIONS_WMS
     + PERMISSIONS_WMS_LOTE_B
     + PERMISSIONS_WMS_LOTE_B_ALIASES
+    + PERMISSIONS_DOCUMENTAL
 )
 
 # Alias español -> código canónico heredado. Permite que una política escrita
@@ -166,6 +174,7 @@ _SOLICITANTE = (
     "requisiciones.ver_propias",
     "requisiciones.historial",
     "almacenes.consultar",
+    "document.render",
 )
 _APROBADOR = (
     "requisition.approve",
@@ -179,6 +188,7 @@ _APROBADOR = (
     "requisiciones.ver_departamento",
     "requisiciones.historial",
     "almacenes.consultar",
+    "document.render",
 )
 _ALMACEN = (
     "inventory.availability.view",
@@ -195,6 +205,9 @@ _ALMACEN = (
     "almacenes.kardex",
     "requisiciones.ver_departamento",
     "compras.consultar",
+    "document.render",
+    "warehouse.voucher.create",
+    "warehouse.voucher.issue",
 )
 _COMPRAS = (
     "purchase.order.create",
@@ -209,6 +222,7 @@ _COMPRAS = (
     "compras.recibir",
     "compras.consultar",
     "almacenes.consultar",
+    "document.render",
 )
 _LECTURA = (
     "requisition.view",
@@ -223,6 +237,7 @@ _LECTURA = (
     "almacenes.kardex",
     "compras.consultar",
     "departamentos.consultar",
+    "document.render",
 )
 
 _WMS_READ = ("catalog.view", "warehouse.location.view")
@@ -280,4 +295,4 @@ MOVEMENT_TYPES = ("INITIAL", "RECEIPT", "ISSUE", "ADJUSTMENT_IN", "ADJUSTMENT_OU
 MOVEMENT_DIRECTIONS = ("IN", "OUT")
 RESERVATION_STATUSES = ("ACTIVE", "CONSUMED", "RELEASED", "EXPIRED")
 PURCHASE_ORDER_STATUSES = ("DRAFT", "APPROVED", "SENT", "PARTIALLY_RECEIVED", "RECEIVED", "CLOSED", "CANCELLED")
-DOCUMENT_TYPES = ("REQ", "AUTH", "OC", "GRN", "INV_MOV", "RES", "ADJ", "COST_POST")
+DOCUMENT_TYPES = ("REQ", "AUTH", "OC", "GRN", "INV_MOV", "RES", "ADJ", "COST_POST", "VA")

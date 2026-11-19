@@ -1,0 +1,4 @@
+# Formatos generados y plantillas: conservar bytes exactos (sin conversión de fin de línea).
+*.pdf binary
+*.png binary
+*.xlsx binary

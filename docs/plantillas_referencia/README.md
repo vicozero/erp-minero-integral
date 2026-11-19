@@ -1,24 +1,22 @@
 # Plantillas visuales de referencia
 
-Esta carpeta debe contener **copias exactas** de los dos PDF proporcionados por el usuario, sin editarlos ni renombrarlos:
+Esta carpeta contiene las **copias exactas** de los PDF autorizados por el usuario, sin editarlos ni renombrarlos:
 
-1. `VA-000165.pdf`
-2. `Requisicion_REQ-0006_JL-03_2026-11-13.pdf`
+1. `VA-000162.pdf` — SHA-256 `82c868df58f06ed7df029c8a67e8239b6f73df92e95f0c8bae8b04cc8a5f6e2e`.
+2. `Requisicion_REQ-0006_JL-03_2026-11-13.pdf` — SHA-256 `5df7f95ee6d850f2b067708a40ad6ea4551c47a7dd2578a3519bde4800526062` (versión Carta/Nitro del escritorio).
 
 ## Estado actual
 
-Los archivos **no están versionados en el repositorio**. Durante la Fase 0 se localizaron copias fuera del árbol Git, en el equipo del usuario:
+Ambas copias están versionadas en Git. El usuario confirmó la selección el 19/11/2026:
 
-- `C:\Users\Dell\Desktop\mantenimiento\vales\VA-000165.pdf`
-- `C:\Users\Dell\Desktop\Requisicion_REQ-0006_JL-03_2026-11-13.pdf`
+- El vale autorizado es `VA-000162.pdf`. Durante la Fase 0 se inspeccionó `VA-000165.pdf`, estructuralmente idéntico; por decisión del usuario no se reproduce el folio 165 y la numeración nueva comienza en `VA-000166`.
+- Para la requisición se eligió la versión Carta/Nitro, no la copia A4/Excel que también circuló fuera del repositorio.
 
-No se copiaron automáticamente porque pueden contener datos reales (folios, departamentos, materiales, firmas o logotipos). Copiarlos a Git requiere autorización explícita.
+Además de los PDF se versionan los cuatro PNG disponibles como posibles fondos del almacén virtual. **No se presentan como plano exacto**; su uso se decidirá en la fase del almacén virtual.
 
-## Instrucciones
+## Inspección
 
-Copie ambos archivos a esta carpeta antes de continuar con la implementación de formatos. Una vez copiados, verifique que sus nombres coincidan exactamente con los indicados arriba.
-
-La inspección técnica disponible se documenta en `INSPECCION_PLANTILLAS.md`.
+El análisis técnico de geometría, capa de texto y trazos está en `INSPECCION_PLANTILLAS.md`. Las evidencias comparativas de los formatos generados están en `docs/EVIDENCIA_FORMATOS/`.
 
 ## Regla de integridad
 
@@ -26,3 +24,4 @@ La inspección técnica disponible se documenta en `INSPECCION_PLANTILLAS.md`.
 - No inventar firmas, aprobaciones ni datos de encabezado.
 - No tratar estas copias como datos sintéticos.
 - No publicar los PDF en el portal ni incluirlos en respuestas de API.
+- Toda corrección de formato se valida contra el SHA-256 indicado arriba.

@@ -1,0 +1,124 @@
+{
+  "advertencia": "Comparación estructural; no sustituye revisión visual humana.",
+  "VA": {
+    "plantilla_referencia": {
+      "archivo": "VA-000162.pdf",
+      "sha256": "82c868df58f06ed7df029c8a67e8239b6f73df92e95f0c8bae8b04cc8a5f6e2e",
+      "paginas": 1,
+      "tamano_pagina_1_pt": [
+        792.0,
+        612.0
+      ],
+      "imagenes_pagina_1": 1,
+      "trazos_pagina_1": 89,
+      "fuentes": {
+        "Helvetica-Bold": 24,
+        "Helvetica": 18
+      }
+    },
+    "generado": {
+      "pdf": {
+        "sha256": "74d4828f3f6106b3bc0ebb5a2c3940d0353177c6f8c3d27074acfa5a89dcfad8",
+        "paginas": 3,
+        "tamano_pagina_1_pt": [
+          792.0,
+          612.0
+        ],
+        "imagenes_pagina_1": 1,
+        "trazos_pagina_1": 31,
+        "fuentes": {
+          "Helvetica-Bold": 63,
+          "Helvetica": 182
+        }
+      },
+      "xlsx": {
+        "sha256": "e93b1911223dc02105a377d306fa5f1da1f21e546fb4c8ad160dfe8b3e553df2",
+        "hojas": [
+          "VA 1",
+          "VA 2",
+          "VA 3"
+        ],
+        "area_impresion": "'VA 1'!$A$1:$H$24",
+        "orientacion": "landscape",
+        "papel": 1,
+        "combinaciones": [
+          "A18:B18",
+          "A19:B19",
+          "A21:C21",
+          "A24:C24",
+          "C18:D18",
+          "C19:D19",
+          "C1:F1",
+          "C2:F2",
+          "C3:F3",
+          "C4:D4",
+          "D21:F21",
+          "D24:F24"
+        ],
+        "encabezado_tabla": "DESCRIPCIÓN DE MATERIAL"
+      },
+      "partidas_por_hoja": 10,
+      "partidas_totales": 25
+    }
+  },
+  "REQ": {
+    "plantilla_referencia": {
+      "archivo": "Requisicion_REQ-0006_JL-03_2026-11-13.pdf",
+      "sha256": "5df7f95ee6d850f2b067708a40ad6ea4551c47a7dd2578a3519bde4800526062",
+      "paginas": 1,
+      "tamano_pagina_1_pt": [
+        612.0,
+        792.0
+      ],
+      "imagenes_pagina_1": 1,
+      "trazos_pagina_1": 74,
+      "fuentes": {
+        "Calibri,Bold": 45,
+        "Calibri": 85
+      }
+    },
+    "generado": {
+      "pdf": {
+        "sha256": "29125f24c40456f167d5964578ebb89a092f0949385cd8539cf4b573b30aa498",
+        "paginas": 2,
+        "tamano_pagina_1_pt": [
+          612.0,
+          792.0
+        ],
+        "imagenes_pagina_1": 1,
+        "trazos_pagina_1": 78,
+        "fuentes": {
+          "Calibri-Bold": 58,
+          "Calibri": 291
+        }
+      },
+      "xlsx": {
+        "sha256": "420853b1266c2fd90d7472e6979c42d6d58073b35525ab825348adfc8d280793",
+        "hojas": [
+          "REQ 1",
+          "REQ 2"
+        ],
+        "area_impresion": "'REQ 1'!$A$1:$P$38",
+        "orientacion": "portrait",
+        "papel": 1,
+        "combinaciones": [
+          "A29:D29",
+          "A30:D30",
+          "A31:H31",
+          "A32:H32",
+          "A34:D34",
+          "D1:M1",
+          "D2:J2",
+          "D3:G3",
+          "E34:J34",
+          "H3:J3",
+          "K2:P2",
+          "K34:P34"
+        ],
+        "encabezado_tabla": "DESCRIPCION"
+      },
+      "partidas_por_hoja": 21,
+      "partidas_totales": 25
+    }
+  }
+}

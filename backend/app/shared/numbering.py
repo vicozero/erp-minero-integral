@@ -66,14 +66,37 @@ def next_document_number(
     *,
     series: str = "GEN",
     mining_unit_id: uuid.UUID | None = None,
+    year: int | None = None,
+    start_number: int | None = None,
+    number_format: str | None = None,
 ) -> tuple[DocumentRegistry, str]:
-    year = _current_year()
+    """Emite un folio de forma atómica.
+
+    ``year``, ``start_number`` y ``number_format`` permiten series especiales
+    sin alterar el generador estándar ``TIPO-SERIE-AÑO-000000``. Para el vale
+    de salida se usa ``year=0`` (centinela "sin año"), ``start_number=166`` y
+    ``number_format='{code}-{number:06d}'``, de acuerdo con la plantilla
+    autorizada ``VA-000162``; así la consecutividad no se reinicia cada año.
+    """
+    resolved_year = _current_year() if year is None else year
+    if start_number is not None and start_number < 1:
+        raise ValueError("start_number debe ser positivo")
     doc_type = _get_or_create_type(db, document_type_code)
-    numbering = _get_or_create_numbering(db, doc_type, company_id, mining_unit_id, series, year)
+    numbering = _get_or_create_numbering(
+        db, doc_type, company_id, mining_unit_id, series, resolved_year
+    )
+    if start_number is not None and numbering.next_number < start_number:
+        numbering.next_number = start_number
 
     number = numbering.next_number
     numbering.next_number = number + 1
-    full_number = f"{document_type_code}-{series}-{year}-{number:06d}"
+    template = number_format or "{code}-{series}-{year}-{number:06d}"
+    full_number = template.format(
+        code=document_type_code,
+        series=series,
+        year=resolved_year,
+        number=number,
+    )
 
     registry = DocumentRegistry(
         document_type_id=doc_type.id,

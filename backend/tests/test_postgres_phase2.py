@@ -70,6 +70,7 @@ def test_migraciones_y_tipos_de_datos(engine) -> None:
         "a1b2c3d4e5f6",
         "b7c8d9e0f1a2",
         "b7c8d9e0f1a3",
+        "c1d2e3f4a5b6",
     }
     assert {"seg", "org", "mdm", "doc", "req", "wfl", "inv", "pur", "mnt", "cost", "intg", "aud"} <= schemas
     assert domain_tables >= 37

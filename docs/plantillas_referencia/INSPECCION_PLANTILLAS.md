@@ -10,14 +10,16 @@
 
 | Rol | Archivo | Ubicación encontrada (fuera del repo) |
 |---|---|---|
-| Vale de salida | `VA-000165.pdf` | `C:\Users\Dell\Desktop\mantenimiento\vales\VA-000165.pdf` |
-| Requisición de compra | `Requisicion_REQ-0006_JL-03_2026-11-13.pdf` | `C:\Users\Dell\Desktop\Requisicion_REQ-0006_JL-03_2026-11-13.pdf` |
+| Vale de salida | `VA-000162.pdf` | `E:\ERP_MINERO\docs\plantillas_referencia\VA-000162.pdf` |
+| Requisición de compra | `Requisicion_REQ-0006_JL-03_2026-11-13.pdf` | `E:\ERP_MINERO\docs\plantillas_referencia\Requisicion_REQ-0006_JL-03_2026-11-13.pdf` |
 
-Ninguno de los dos está actualmente en `E:\ERP_MINERO`. La carpeta `docs/plantillas_referencia/` queda preparada para que el usuario los copie.
+Durante la Fase 0 se inspeccionó además `VA-000165.pdf` desde `C:\Users\Dell\Desktop\mantenimiento\vales\`. El 19/11/2026 el usuario confirmó como plantilla autorizada la copia `VA-000162.pdf`: ambos archivos son estructuralmente idénticos (792 × 612 pt, 89 trazos, 1 imagen, logotipo 444 × 202 px); cambia el folio impreso. Las coordenadas de esta sección se conservan porque son válidas para la plantilla autorizada. Lo mismo aplica a la requisición: se usa la versión Carta/Nitro del escritorio, no la copia A4/Excel que también circuló en la raíz.
+
+Ambas copias autorizadas ya están versionadas en `docs/plantillas_referencia/`.
 
 ---
 
-## 2. VA-000165.pdf
+## 2. VA-000162.pdf
 
 ### 2.1 Geometría
 
@@ -59,7 +61,7 @@ Texto extraído, con posiciones aproximadas:
 | Etiqueta folio | 88 | 649..693 | `F O L I O` (letras espaciadas) |
 | Título | 112 | 336..409 | `VALE DE SALIDA` |
 | Subtítulo | 128 | 374 | `ALMACÉN` |
-| Folio | 128 | 635 | `VA-000165` |
+| Folio | 128 | 635 | `VA-000162` (plantilla autorizada) |
 | Departamento | 144 | 270 / 446 | `DEPARTAMENTO:` / `MANTENIMIENTO` |
 
 ### 2.5 Tabla de partidas
@@ -202,10 +204,10 @@ No se detectaron nombres ni firmas manuscritas en los tres bloques de firma; apa
 
 ---
 
-## 5. Decisiones que requieren el PDF original
+## 5. Decisiones registradas y pendientes
 
-1. Copiar las dos plantillas a esta carpeta y confirmar que no contienen datos reales que deban anonimizarse antes de versionarse.
-2. Revisar visualmente el valor del folio de la requisición; no aparece en la capa de texto.
-3. Confirmar si las firmas y logotipos deben conservarse exactamente como imagen o redibujarse como vectores/plantilla.
-4. Definir el tipo documental del vale (`VALE` o equivalente) en `DOCUMENT_TYPES` y su serie de numeración.
-5. Definir la política de SLA/semáforo antes de implementar cálculos.
+1. **Resuelto:** las plantillas autorizadas están copiadas y versionadas en esta carpeta. El usuario confirmó el uso de `VA-000162.pdf` y de la requisición Carta/Nitro; los PDF originales no se publican en la API.
+2. **Resuelto:** el tipo documental del vale quedó como `VA`, serie `VA / LAG`, sin año, con secuencia inicial `166`.
+3. **Pendiente:** revisar visualmente el valor del folio de la requisición; no aparece en la capa de texto.
+4. **Pendiente:** validar visualmente los PDF/XLSX generados contra las plantillas en `docs/EVIDENCIA_FORMATOS/`; la comparación actual es estructural.
+5. **Pendiente:** definir la política de SLA/semáforo antes de implementar cálculos (siguiente lote).

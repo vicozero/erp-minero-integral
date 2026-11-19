@@ -57,6 +57,9 @@ class Settings(BaseSettings):
     # Almacenamiento controlado de adjuntos. Fuera del repositorio y de la base.
     ATTACHMENT_STORAGE_DIR: Path = Path(__file__).resolve().parents[3] / "var" / "attachments"
     ATTACHMENT_MAX_BYTES: int = Field(default=5 * 1024 * 1024, gt=0)
+    # Documentos generados (PDF/XLSX). Fuera del repositorio y servidos solo
+    # por endpoints autorizados; nunca se exponen rutas locales.
+    DOCUMENT_STORAGE_DIR: Path = Path(__file__).resolve().parents[3] / "var" / "documents"
 
     @field_validator("DATABASE_URL")
     @classmethod

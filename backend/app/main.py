@@ -7,7 +7,18 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api.v1.routers import admin, audit, auth, catalogs, health, inventory, purchasing, requisitions, wms
+from app.api.v1.routers import (
+    admin,
+    audit,
+    auth,
+    catalogs,
+    documentation,
+    health,
+    inventory,
+    purchasing,
+    requisitions,
+    wms,
+)
 from app.core.config import settings
 from app.core.context import request_id_var
 
@@ -99,6 +110,7 @@ for modular_router in (
     requisitions.router,
     inventory.router,
     purchasing.router,
+    documentation.router,
     wms.router,
     audit.router,
 ):

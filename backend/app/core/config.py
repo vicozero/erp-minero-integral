@@ -36,6 +36,10 @@ class Settings(BaseSettings):
     SECRET_KEY: str = Field(repr=False)
     DEMO_PASSWORD: str | None = Field(default=None, repr=False)
 
+    # Almacenamiento controlado de adjuntos. Fuera del repositorio y de la base.
+    ATTACHMENT_STORAGE_DIR: Path = Path(__file__).resolve().parents[3] / "var" / "attachments"
+    ATTACHMENT_MAX_BYTES: int = Field(default=5 * 1024 * 1024, gt=0)
+
     @field_validator("DATABASE_URL")
     @classmethod
     def validate_database_url(cls, value: str) -> str:

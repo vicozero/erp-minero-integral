@@ -1,14 +1,17 @@
 from __future__ import annotations
 
+import hashlib
 import uuid
 from datetime import datetime, timezone
 from decimal import Decimal
+from pathlib import Path
 from typing import NoReturn
 
 from fastapi import HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.modules.audit.service import AuditService
 from app.modules.costing.models import CostCenter
 from app.modules.documentation.models import DocumentEvent, DocumentRegistry
@@ -17,8 +20,9 @@ from app.modules.inventory.service import InventoryService
 from app.modules.master_data.models import Item, Uom
 from app.modules.organization.models import Department, MiningUnit, Warehouse
 from app.modules.purchasing.service import PurchasingService
-from app.modules.requisitions.models import Requisition, RequisitionLine
+from app.modules.requisitions.models import Requisition, RequisitionAttachment, RequisitionLine
 from app.modules.workflow.models import ApprovalDecision, ApprovalRequest, ApprovalStep
+from app.shared.constants import APPROVER_ROLE_CODES
 from app.shared.events import emit
 from app.shared.numbering import next_document_number, record_document_event
 
@@ -31,42 +35,105 @@ def _fail(detail: str, code: int = status.HTTP_409_CONFLICT) -> NoReturn:
     raise RequisitionError(status_code=code, detail=detail)
 
 
+_ALLOWED_ATTACHMENTS: dict[str, set[str]] = {
+    "image/jpeg": {".jpg", ".jpeg"},
+    "image/png": {".png"},
+    "application/pdf": {".pdf"},
+}
+
+
 class RequisitionService:
     @staticmethod
-    def create(db: Session, actor_id: uuid.UUID, payload) -> Requisition:
-        for model, entity_id, label in (
-            (Department, payload.department_id, "Departamento"),
-            (CostCenter, payload.cost_center_id, "Centro de costo"),
-            (MiningUnit, None, "Unidad minera"),
-        ):
-            if entity_id is not None and db.get(model, entity_id) is None:
-                _fail(f"{label} inexistente.", status.HTTP_404_NOT_FOUND)
-        unit = db.execute(select(MiningUnit).where(MiningUnit.code == "LAG_DEMO")).scalar_one_or_none()
+    def _context(
+        db: Session,
+        actor_id: uuid.UUID,
+        department_id: uuid.UUID,
+        warehouse_id: uuid.UUID | None,
+        cost_center_id: uuid.UUID,
+        equipment_id: uuid.UUID | None,
+    ) -> tuple[uuid.UUID, uuid.UUID]:
+        """Resuelve compañía/unidad desde el departamento y valida referencias."""
+        IdentityService.assert_department_access(db, actor_id, department_id)
+        department = db.get(Department, department_id)
+        if department is None:
+            _fail("Departamento inexistente.", status.HTTP_404_NOT_FOUND)
+        if department.mining_unit_id is None:
+            _fail("El departamento no tiene una unidad minera asignada.", status.HTTP_422_UNPROCESSABLE_ENTITY)
+        unit = db.get(MiningUnit, department.mining_unit_id)
         if unit is None:
-            _fail("Unidad minera demo no configurada.", status.HTTP_404_NOT_FOUND)
-        if payload.warehouse_id is not None and db.get(Warehouse, payload.warehouse_id) is None:
-            _fail("Almacén inexistente.", status.HTTP_404_NOT_FOUND)
-        if payload.requisition_type == "STOCK" and payload.warehouse_id is None:
-            _fail("Las requisiciones de almacén requieren un almacén.", status.HTTP_422_UNPROCESSABLE_ENTITY)
+            _fail("Unidad minera inexistente.", status.HTTP_404_NOT_FOUND)
+        company_id = department.company_id
 
-        for line in payload.lines:
+        def check(model, entity_id: uuid.UUID | None, label: str):
+            if entity_id is None:
+                return None
+            entity = db.get(model, entity_id)
+            if entity is None:
+                _fail(f"{label} inexistente.", status.HTTP_404_NOT_FOUND)
+            if getattr(entity, "company_id", None) != company_id:
+                _fail(f"{label} pertenece a otra compañía.", status.HTTP_422_UNPROCESSABLE_ENTITY)
+            return entity
+
+        cost_center = db.get(CostCenter, cost_center_id)
+        if cost_center is None:
+            _fail("Centro de costo inexistente.", status.HTTP_404_NOT_FOUND)
+        if cost_center.company_id != company_id:
+            _fail("El centro de costo pertenece a otra compañía.", status.HTTP_422_UNPROCESSABLE_ENTITY)
+        check(Warehouse, warehouse_id, "Almacén")
+        if equipment_id is not None:
+            from app.modules.maintenance.models import Equipment
+
+            check(Equipment, equipment_id, "Equipo")
+        return company_id, unit.id
+
+    @staticmethod
+    def _assert_lines(db: Session, lines, company_id: uuid.UUID) -> None:
+        if not lines:
+            _fail("La requisición debe tener al menos una partida.", status.HTTP_422_UNPROCESSABLE_ENTITY)
+        for line in lines:
+            if not line.description.strip():
+                _fail("Las partidas requieren descripción.", status.HTTP_422_UNPROCESSABLE_ENTITY)
+            if line.requested_qty <= Decimal("0"):
+                _fail("La cantidad solicitada debe ser positiva.", status.HTTP_422_UNPROCESSABLE_ENTITY)
             if db.get(Uom, line.uom_id) is None:
                 _fail(f"Unidad de medida inexistente en partida {line.description}.")
-            if line.item_id is not None and db.get(Item, line.item_id) is None:
-                _fail(f"Artículo inexistente en partida {line.description}.")
+            if line.item_id is not None:
+                item = db.get(Item, line.item_id)
+                if item is None:
+                    _fail(f"Artículo inexistente en partida {line.description}.")
+                if item.company_id != company_id:
+                    _fail(f"El artículo de la partida {line.description} pertenece a otra compañía.")
+
+    @staticmethod
+    def _is_owner_or_admin(db: Session, req: Requisition, actor_id: uuid.UUID) -> bool:
+        return req.requester_id == actor_id or IdentityService.is_admin(db, actor_id)
+
+    @staticmethod
+    def create(db: Session, actor_id: uuid.UUID, payload) -> Requisition:
+        company_id, unit_id = RequisitionService._context(
+            db,
+            actor_id,
+            payload.department_id,
+            payload.warehouse_id,
+            payload.cost_center_id,
+            payload.equipment_id,
+        )
+        RequisitionService._assert_lines(db, payload.lines, company_id)
+        if payload.requisition_type == "STOCK" and payload.warehouse_id is None:
+            _fail("Las requisiciones de almacén requieren un almacén.", status.HTTP_422_UNPROCESSABLE_ENTITY)
 
         registry, document_no = next_document_number(
             db,
             "REQ",
-            unit.company_id,
+            company_id,
             series="LAG",
-            mining_unit_id=unit.id,
+            mining_unit_id=unit_id,
         )
         req = Requisition(
             document_no=document_no,
             document_registry_id=registry.id,
-            company_id=unit.company_id,
-            mining_unit_id=unit.id,
+            company_id=company_id,
+            mining_unit_id=unit_id,
             department_id=payload.department_id,
             warehouse_id=payload.warehouse_id,
             equipment_id=payload.equipment_id,
@@ -78,6 +145,8 @@ class RequisitionService:
             justification=payload.justification,
             observations=payload.observations,
             needed_at=payload.needed_at,
+            work_order_no=payload.work_order_no,
+            created_by=actor_id,
         )
         db.add(req)
         db.flush()
@@ -94,6 +163,7 @@ class RequisitionService:
                     cancelled_qty=Decimal("0"),
                     status="OPEN",
                     notes=line.notes,
+                    created_by=actor_id,
                 )
             )
         db.flush()
@@ -106,7 +176,8 @@ class RequisitionService:
             entity_type="Requisition",
             entity_id=req.id,
             actor_id=actor_id,
-            after={"document_no": document_no, "lines": len(payload.lines)},
+            before=None,
+            after={"document_no": document_no, "lines": len(payload.lines), "work_order_no": payload.work_order_no},
         )
         emit(db, "Requisition", req.id, "REQUISITION_CREATED", {"document_no": document_no})
         return req
@@ -118,17 +189,81 @@ class RequisitionService:
         ).scalar_one_or_none()
         if req is None:
             _fail("Requisición inexistente.", status.HTTP_404_NOT_FOUND)
+        if not RequisitionService._is_owner_or_admin(db, req, actor_id):
+            _fail("Solo el solicitante puede editar esta requisición.", status.HTTP_403_FORBIDDEN)
         if req.status != "DRAFT":
             _fail("Solo se pueden modificar requisiciones en borrador.")
+        RequisitionService._context(
+            db,
+            actor_id,
+            req.department_id,
+            req.warehouse_id,
+            req.cost_center_id,
+            req.equipment_id,
+        )
         before = {
             "justification": req.justification,
             "observations": req.observations,
             "priority": req.priority,
+            "needed_at": str(req.needed_at),
+            "work_order_no": req.work_order_no,
         }
         req.justification = payload.justification
         req.observations = payload.observations
         req.priority = payload.priority
         req.needed_at = payload.needed_at
+        req.work_order_no = payload.work_order_no
+        req.updated_by = actor_id
+
+        if payload.lines is not None:
+            company_id, _unit_id = RequisitionService._context(
+                db,
+                actor_id,
+                req.department_id,
+                req.warehouse_id,
+                req.cost_center_id,
+                req.equipment_id,
+            )
+            RequisitionService._assert_lines(db, payload.lines, company_id)
+            existing = {
+                line.id: line
+                for line in db.execute(
+                    select(RequisitionLine).where(RequisitionLine.requisition_id == req.id).with_for_update()
+                ).scalars()
+            }
+            kept: set[uuid.UUID] = set()
+            next_no = max((line.line_no for line in existing.values()), default=0) + 1
+            for incoming in payload.lines:
+                line = existing.get(incoming.id) if incoming.id else None
+                if line is not None:
+                    if line.requisition_id != req.id:
+                        _fail("La partida no pertenece a la requisición.")
+                    kept.add(line.id)
+                else:
+                    line = RequisitionLine(
+                        requisition_id=req.id,
+                        line_no=next_no,
+                        authorised_qty=Decimal("0"),
+                        cancelled_qty=Decimal("0"),
+                        status="OPEN",
+                        created_by=actor_id,
+                    )
+                    next_no += 1
+                    db.add(line)
+                line.item_id = incoming.item_id
+                line.description = incoming.description
+                line.uom_id = incoming.uom_id
+                line.requested_qty = incoming.requested_qty
+                line.notes = incoming.notes
+                line.updated_by = actor_id
+            for line_id, line in existing.items():
+                if line_id in kept:
+                    continue
+                line.cancelled_qty = line.requested_qty
+                line.authorised_qty = Decimal("0")
+                line.status = "CANCELLED"
+                line.updated_by = actor_id
+
         AuditService.record(
             db,
             action="REQUISITION_DRAFT_UPDATE",
@@ -140,8 +275,14 @@ class RequisitionService:
                 "justification": req.justification,
                 "observations": req.observations,
                 "priority": req.priority,
+                "needed_at": str(req.needed_at),
+                "work_order_no": req.work_order_no,
+                "lines": len(payload.lines) if payload.lines is not None else None,
             },
         )
+        registry = db.get(DocumentRegistry, req.document_registry_id)
+        if registry is not None:
+            record_document_event(db, registry, "REQUISITION_DRAFT_UPDATED", "DRAFT", "DRAFT", actor_id)
         return req
 
     @staticmethod
@@ -151,16 +292,21 @@ class RequisitionService:
         ).scalar_one_or_none()
         if req is None:
             _fail("Requisición inexistente.", status.HTTP_404_NOT_FOUND)
+        if not RequisitionService._is_owner_or_admin(db, req, actor_id):
+            _fail("Solo el solicitante puede enviar esta requisición.", status.HTTP_403_FORBIDDEN)
         if req.status != "DRAFT":
             _fail("Solo se puede enviar una requisición en borrador.")
-        line_count = db.execute(
-            select(func.count()).select_from(RequisitionLine).where(RequisitionLine.requisition_id == req.id)
-        ).scalar_one()
-        if line_count == 0:
-            _fail("La requisición no tiene partidas.")
+        lines = list(
+            db.execute(
+                select(RequisitionLine).where(RequisitionLine.requisition_id == req.id).with_for_update()
+            ).scalars()
+        )
+        if not any(line.status != "CANCELLED" and line.requested_qty > line.cancelled_qty for line in lines):
+            _fail("La requisición no tiene partidas vigentes.")
 
         req.status = "SUBMITTED"
         req.submitted_at = datetime.now(timezone.utc)
+        req.updated_by = actor_id
         approval = ApprovalRequest(
             document_type="REQUISITION",
             document_id=req.id,
@@ -188,6 +334,7 @@ class RequisitionService:
             entity_type="Requisition",
             entity_id=req.id,
             actor_id=actor_id,
+            before={"status": "DRAFT"},
             after={"status": "SUBMITTED"},
         )
         emit(db, "Requisition", req.id, "REQUISITION_SUBMITTED", {})
@@ -206,6 +353,9 @@ class RequisitionService:
             _fail("No puede autorizar su propia requisición.", status.HTTP_403_FORBIDDEN)
         if not IdentityService.can_access_department(db, actor_id, req.department_id):
             _fail("No tiene acceso a requisiciones de ese departamento.", status.HTTP_403_FORBIDDEN)
+        actor_roles = set(IdentityService.role_codes(db, actor_id))
+        if not actor_roles & APPROVER_ROLE_CODES:
+            _fail("Su rol no corresponde al paso de aprobación.", status.HTTP_403_FORBIDDEN)
 
         approval = db.execute(
             select(ApprovalRequest)
@@ -234,8 +384,6 @@ class RequisitionService:
                 .with_for_update()
             ).scalars()
         }
-        if not payload.decisions:
-            _fail("Debe enviar al menos una decisión.")
         seen: set[uuid.UUID] = set()
         approved_by_line: dict[uuid.UUID, Decimal] = {}
         has_reject = False
@@ -246,10 +394,11 @@ class RequisitionService:
             line = lines.get(decision.requisition_line_id)
             if line is None:
                 _fail("La partida no pertenece a la requisición.")
+            reason = decision.reason or payload.reason
             if decision.decision == "REJECT":
                 has_reject = True
-                if not decision.reason and not payload.reason:
-                    _fail("El rechazo requiere motivo.", 422)
+                if not reason:
+                    _fail("El rechazo requiere motivo.", status.HTTP_422_UNPROCESSABLE_ENTITY)
                 qty = Decimal("0")
             else:
                 qty = decision.approved_qty
@@ -262,33 +411,52 @@ class RequisitionService:
                     requisition_line_id=line.id,
                     decision=decision.decision,
                     approved_qty=qty,
-                    reason=decision.reason or payload.reason,
+                    reason=reason,
                     decided_by=actor_id,
                     decided_at=datetime.now(timezone.utc),
                 )
             )
 
-        for line_id, qty in approved_by_line.items():
-            line = lines[line_id]
-            line.authorised_qty = qty
-            if qty <= Decimal("0"):
+        omitted = 0
+        for line_id, line in lines.items():
+            decided_qty = approved_by_line.get(line_id)
+            if line.status == "CANCELLED":
+                continue
+            if decided_qty is None:
+                omitted += 1
+                line.authorised_qty = Decimal("0")
+                line.cancelled_qty = line.requested_qty
                 line.status = "CANCELLED"
-            elif qty < line.requested_qty - line.cancelled_qty:
+                line.updated_by = actor_id
+                continue
+            line.authorised_qty = decided_qty
+            if decided_qty <= Decimal("0"):
+                line.status = "CANCELLED"
+                line.cancelled_qty = line.requested_qty
+            elif decided_qty < line.requested_qty - line.cancelled_qty:
                 line.status = "PARTIAL"
             else:
                 line.status = "AUTHORISED"
+            line.updated_by = actor_id
+            if decided_qty <= Decimal("0"):
+                InventoryService.release_line_reservations(db, line.id, actor_id, "Partida rechazada")
 
-        total_requested = sum((line.requested_qty - line.cancelled_qty for line in lines.values()), Decimal("0"))
-        total_approved = sum(approved_by_line.values(), Decimal("0"))
+        active_requested = sum(
+            (line.requested_qty - line.cancelled_qty for line in lines.values()), Decimal("0")
+        )
+        total_approved = sum(
+            (approved_by_line.get(line_id, Decimal("0")) for line_id in lines if lines[line_id].status != "CANCELLED"),
+            Decimal("0"),
+        )
         now = datetime.now(timezone.utc)
-        if has_reject and total_approved == Decimal("0"):
+        if active_requested == Decimal("0") or (has_reject and total_approved == Decimal("0")):
             req.status = "REJECTED"
             req.rejected_at = now
-            req.rejection_reason = payload.reason or "Rechazo parcial sin autorización"
+            req.rejection_reason = payload.reason or "Todas las partidas fueron canceladas."
             approval.status = "REJECTED"
             step.status = "REJECTED"
             new_status = "REJECTED"
-        elif total_approved >= total_requested:
+        elif total_approved >= active_requested:
             req.status = "APPROVED"
             req.approved_at = now
             approval.status = "APPROVED"
@@ -302,6 +470,7 @@ class RequisitionService:
             new_status = "PARTIALLY_APPROVED"
         approval.completed_at = now
         step.acted_at = now
+        req.updated_by = actor_id
 
         registry = db.get(DocumentRegistry, req.document_registry_id)
         if registry is not None:
@@ -312,7 +481,7 @@ class RequisitionService:
                 "SUBMITTED",
                 new_status,
                 actor_id,
-                {"reason": payload.reason},
+                {"reason": payload.reason, "omitted_lines": omitted},
             )
         AuditService.record(
             db,
@@ -320,10 +489,79 @@ class RequisitionService:
             entity_type="Requisition",
             entity_id=req.id,
             actor_id=actor_id,
-            after={"status": new_status, "approved_qty": str(total_approved)},
+            before={"status": "SUBMITTED"},
+            after={"status": new_status, "approved_qty": str(total_approved), "omitted_lines": omitted},
             detail=payload.reason,
         )
         emit(db, "Requisition", req.id, "REQUISITION_DECIDED", {"status": new_status})
+        return req
+
+    @staticmethod
+    def cancel(db: Session, actor_id: uuid.UUID, requisition_id: uuid.UUID, reason: str) -> Requisition:
+        req = db.execute(
+            select(Requisition).where(Requisition.id == requisition_id).with_for_update()
+        ).scalar_one_or_none()
+        if req is None:
+            _fail("Requisición inexistente.", status.HTTP_404_NOT_FOUND)
+        if req.status in ("CANCELLED", "CLOSED", "REJECTED"):
+            _fail("La requisición ya está cerrada, cancelada o rechazada.")
+        if req.requester_id == actor_id and not IdentityService.is_admin(db, actor_id):
+            _fail("La cancelación debe ser autorizada por otro responsable.", status.HTTP_403_FORBIDDEN)
+        if not IdentityService.can_access_department(db, actor_id, req.department_id):
+            _fail("No tiene acceso a requisiciones de ese departamento.", status.HTTP_403_FORBIDDEN)
+
+        old_status = req.status
+        lines = list(
+            db.execute(
+                select(RequisitionLine).where(RequisitionLine.requisition_id == req.id).with_for_update()
+            ).scalars()
+        )
+        for line in lines:
+            InventoryService.release_line_reservations(db, line.id, actor_id, f"Cancelación: {reason}")
+            delivered = InventoryService.line_delivered_qty(db, line.id)
+            restante = max(Decimal("0"), line.requested_qty - delivered - line.cancelled_qty)
+            line.cancelled_qty += restante
+            line.authorised_qty = delivered
+            line.status = "CLOSED" if delivered > Decimal("0") else "CANCELLED"
+            line.updated_by = actor_id
+
+        approval = db.execute(
+            select(ApprovalRequest)
+            .where(ApprovalRequest.requisition_id == req.id, ApprovalRequest.status == "PENDING")
+            .with_for_update()
+        ).scalar_one_or_none()
+        if approval is not None:
+            approval.status = "CANCELLED"
+            approval.completed_at = datetime.now(timezone.utc)
+            steps = db.execute(
+                select(ApprovalStep)
+                .where(ApprovalStep.approval_request_id == approval.id, ApprovalStep.status == "PENDING")
+                .with_for_update()
+            ).scalars()
+            for step in steps:
+                step.status = "SKIPPED"
+                step.acted_at = datetime.now(timezone.utc)
+
+        req.status = "CANCELLED"
+        req.rejection_reason = reason
+        req.closed_at = datetime.now(timezone.utc)
+        req.updated_by = actor_id
+        registry = db.get(DocumentRegistry, req.document_registry_id)
+        if registry is not None:
+            record_document_event(
+                db, registry, "REQUISITION_CANCELLED", old_status, "CANCELLED", actor_id, {"reason": reason}
+            )
+        AuditService.record(
+            db,
+            action="REQUISITION_CANCEL",
+            entity_type="Requisition",
+            entity_id=req.id,
+            actor_id=actor_id,
+            before={"status": old_status},
+            after={"status": "CANCELLED"},
+            detail=reason,
+        )
+        emit(db, "Requisition", req.id, "REQUISITION_CANCELLED", {"reason": reason})
         return req
 
     @staticmethod
@@ -334,6 +572,7 @@ class RequisitionService:
             delivered = InventoryService.line_delivered_qty(db, line.id)
             purchased = PurchasingService.line_purchased_qty(db, line.id)
             received = PurchasingService.line_received_qty(db, line.id)
+            pending = max(Decimal("0"), line.authorised_qty - delivered)
             lines.append(
                 {
                     "id": line.id,
@@ -350,7 +589,7 @@ class RequisitionService:
                     "purchased_qty": purchased,
                     "received_qty": received,
                     "delivered_qty": delivered,
-                    "pending_qty": line.requested_qty - line.cancelled_qty - delivered,
+                    "pending_qty": pending,
                 }
             )
         return {
@@ -366,6 +605,7 @@ class RequisitionService:
             "justification": req.justification,
             "observations": req.observations,
             "needed_at": req.needed_at,
+            "work_order_no": req.work_order_no,
             "submitted_at": req.submitted_at,
             "approved_at": req.approved_at,
             "rejected_at": req.rejected_at,
@@ -396,3 +636,87 @@ class RequisitionService:
             }
             for event in events
         ]
+
+    # ------------------------------------------------------------------
+    # Adjuntos en almacenamiento controlado
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _attachment_requisition(db: Session, actor_id: uuid.UUID, requisition_id: uuid.UUID) -> Requisition:
+        req = db.get(Requisition, requisition_id)
+        if req is None:
+            _fail("Requisición inexistente.", status.HTTP_404_NOT_FOUND)
+        if not IdentityService.can_access_department(db, actor_id, req.department_id):
+            _fail("No tiene acceso a los adjuntos de esa requisición.", status.HTTP_403_FORBIDDEN)
+        return req
+
+    @staticmethod
+    def add_attachment(
+        db: Session,
+        actor_id: uuid.UUID,
+        requisition_id: uuid.UUID,
+        *,
+        file_name: str,
+        content_type: str,
+        content: bytes,
+    ) -> RequisitionAttachment:
+        RequisitionService._attachment_requisition(db, actor_id, requisition_id)
+        suffix = Path(file_name).suffix.lower()
+        allowed = _ALLOWED_ATTACHMENTS.get(content_type.lower())
+        if allowed is None or suffix not in allowed:
+            _fail("Solo se admiten adjuntos PDF, JPG o PNG.", status.HTTP_422_UNPROCESSABLE_ENTITY)
+        if not content or len(content) > settings.ATTACHMENT_MAX_BYTES:
+            _fail("El adjunto está vacío o excede el tamaño permitido.", status.HTTP_413_REQUEST_ENTITY_TOO_LARGE)
+
+        stored_name = f"{uuid.uuid4()}{suffix}"
+        directory = settings.ATTACHMENT_STORAGE_DIR / str(requisition_id)
+        directory.mkdir(parents=True, exist_ok=True)
+        path = directory / stored_name
+        digest = hashlib.sha256(content).hexdigest()
+        with path.open("xb") as handle:
+            handle.write(content)
+        try:
+            attachment = RequisitionAttachment(
+                requisition_id=requisition_id,
+                file_name=Path(file_name).name[:255],
+                stored_name=stored_name,
+                content_type=content_type.lower(),
+                size_bytes=len(content),
+                sha256=digest,
+                uploaded_by=actor_id,
+            )
+            db.add(attachment)
+            db.flush()
+            AuditService.record(
+                db,
+                action="REQUISITION_ATTACHMENT_UPLOAD",
+                entity_type="RequisitionAttachment",
+                entity_id=attachment.id,
+                actor_id=actor_id,
+                after={"requisition_id": str(requisition_id), "sha256": digest, "size_bytes": len(content)},
+            )
+        except Exception:
+            path.unlink(missing_ok=True)
+            raise
+        return attachment
+
+    @staticmethod
+    def list_attachments(db: Session, actor_id: uuid.UUID, requisition_id: uuid.UUID) -> list[RequisitionAttachment]:
+        RequisitionService._attachment_requisition(db, actor_id, requisition_id)
+        return list(
+            db.execute(
+                select(RequisitionAttachment)
+                .where(RequisitionAttachment.requisition_id == requisition_id)
+                .order_by(RequisitionAttachment.created_at)
+            ).scalars()
+        )
+
+    @staticmethod
+    def attachment_path(db: Session, actor_id: uuid.UUID, attachment_id: uuid.UUID) -> Path:
+        attachment = db.get(RequisitionAttachment, attachment_id)
+        if attachment is None:
+            _fail("Adjunto inexistente.", status.HTTP_404_NOT_FOUND)
+        RequisitionService._attachment_requisition(db, actor_id, attachment.requisition_id)
+        path = settings.ATTACHMENT_STORAGE_DIR / str(attachment.requisition_id) / attachment.stored_name
+        if not path.is_file():
+            _fail("El archivo adjunto no está disponible.", status.HTTP_404_NOT_FOUND)
+        return path

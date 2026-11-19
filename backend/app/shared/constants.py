@@ -19,6 +19,7 @@ PERMISSIONS_LEGACY: tuple[str, ...] = (
     "purchase.receive",
     "purchase.view",
     "requisition.approve",
+    "requisition.cancel",
     "requisition.create",
     "requisition.history.view",
     "requisition.submit",
@@ -30,6 +31,7 @@ PERMISSIONS_FASE3: tuple[str, ...] = (
     "requisiciones.ver_propias",
     "requisiciones.ver_departamento",
     "requisiciones.autorizar",
+    "requisiciones.cancelar",
     "requisiciones.historial",
     "almacenes.consultar",
     "almacenes.reservar",
@@ -64,6 +66,7 @@ PERMISSIONS: tuple[str, ...] = PERMISSIONS_LEGACY + PERMISSIONS_FASE3 + PERMISSI
 PERMISSION_ALIASES: dict[str, str] = {
     "requisiciones.crear": "requisition.create",
     "requisiciones.autorizar": "requisition.approve",
+    "requisiciones.cancelar": "requisition.cancel",
     "requisiciones.historial": "requisition.history.view",
     "almacenes.consultar": "inventory.availability.view",
     "almacenes.reservar": "inventory.reserve",
@@ -102,11 +105,13 @@ _SOLICITANTE = (
 )
 _APROBADOR = (
     "requisition.approve",
+    "requisition.cancel",
     "requisition.view",
     "requisition.view_department",
     "requisition.history.view",
     "inventory.availability.view",
     "requisiciones.autorizar",
+    "requisiciones.cancelar",
     "requisiciones.ver_departamento",
     "requisiciones.historial",
     "almacenes.consultar",
@@ -183,6 +188,7 @@ ROLE_LABELS: dict[str, str] = {
 }
 
 ADMIN_ROLE_CODES: frozenset[str] = frozenset({"ADMIN"})
+APPROVER_ROLE_CODES: frozenset[str] = frozenset({"ADMIN", "APROBADOR", "JEFE_DEPARTAMENTO"})
 
 REQUISITION_STATUSES = ("DRAFT", "SUBMITTED", "APPROVED", "PARTIALLY_APPROVED", "REJECTED", "CANCELLED", "IN_PROGRESS", "CLOSED")
 REQUISITION_LINE_STATUSES = ("OPEN", "PARTIAL", "AUTHORISED", "CANCELLED", "CLOSED")

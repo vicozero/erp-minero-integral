@@ -116,8 +116,29 @@ export interface Requisition {
   approved_at: string | null;
   rejected_at: string | null;
   rejection_reason: string | null;
+  work_order_no: string | null;
   created_at: string;
   lines: RequisitionLine[];
+}
+
+export interface RequisitionAttachment {
+  id: string;
+  requisition_id: string;
+  file_name: string;
+  content_type: string;
+  size_bytes: number;
+  sha256: string;
+  created_at: string;
+}
+
+export interface RequisitionFilters {
+  status?: string;
+  priority?: string;
+  department_id?: string;
+  equipment_id?: string;
+  document_no?: string;
+  date_from?: string;
+  date_to?: string;
 }
 
 export interface Availability {
@@ -194,7 +215,10 @@ export interface RequisitionPayload {
   priority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
   justification: string;
   observations?: string | null;
+  needed_at?: string | null;
+  work_order_no?: string | null;
   lines: Array<{
+    id?: string;
     item_id?: string | null;
     description: string;
     uom_id: string;

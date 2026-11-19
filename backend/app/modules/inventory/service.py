@@ -10,12 +10,14 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.modules.audit.service import AuditService
+from app.modules.documentation.models import DocumentRegistry
 from app.modules.inventory.models import NULL_UUID, StockBalance, StockMovement, StockReservation
 from app.modules.master_data.models import Item
 from app.modules.organization.models import Warehouse
 from app.modules.requisitions.models import Requisition, RequisitionLine
 from app.shared.constants import APPROVABLE_STATUSES
 from app.shared.events import emit
+from app.shared.idempotency import acquire, complete
 from app.shared.numbering import attach_entity, next_document_number, record_document_event
 
 
@@ -50,6 +52,51 @@ def _get_or_create_balance(db: Session, warehouse_id: uuid.UUID, item_id: uuid.U
         db.add(balance)
         db.flush()
     return balance
+
+
+def _release_reservation(
+    db: Session,
+    reservation: StockReservation,
+    actor_id: uuid.UUID,
+    reason: str,
+    new_status: str,
+) -> None:
+    """Libera el remanente de una reserva y descuenta el saldo reservado."""
+    remaining = reservation.quantity - reservation.consumed_qty
+    if remaining <= Decimal("0"):
+        reservation.status = new_status
+        return
+    balance = db.execute(
+        select(StockBalance)
+        .where(
+            StockBalance.warehouse_id == reservation.warehouse_id,
+            StockBalance.item_id == reservation.item_id,
+            StockBalance.lot_id == reservation.lot_id,
+            StockBalance.location_id == reservation.location_id,
+        )
+        .with_for_update()
+    ).scalar_one_or_none()
+    if balance is not None:
+        balance.reserved_qty = max(Decimal("0"), balance.reserved_qty - remaining)
+    reservation.status = new_status
+    reservation.updated_by = actor_id
+    AuditService.record(
+        db,
+        action="STOCK_RESERVATION_RELEASED",
+        entity_type="StockReservation",
+        entity_id=reservation.id,
+        actor_id=actor_id,
+        before={"status": "ACTIVE", "remaining_qty": str(remaining)},
+        after={"status": new_status, "remaining_qty": "0"},
+        detail=reason,
+    )
+    emit(
+        db,
+        "StockReservation",
+        reservation.id,
+        "STOCK_RESERVATION_RELEASED",
+        {"reason": reason, "quantity": str(remaining)},
+    )
 
 
 class InventoryService:
@@ -102,17 +149,112 @@ class InventoryService:
         return Decimal(str(value))
 
     @staticmethod
+    def release_line_reservations(
+        db: Session,
+        requisition_line_id: uuid.UUID,
+        actor_id: uuid.UUID,
+        reason: str,
+    ) -> int:
+        """Libera de forma transaccional todas las reservas activas de una partida.
+
+        La fila de la partida ya debe estar bloqueada por el servidor llamante
+        para que la liberación no compita con una entrega concurrente.
+        """
+        reservations = list(
+            db.execute(
+                select(StockReservation)
+                .where(
+                    StockReservation.requisition_line_id == requisition_line_id,
+                    StockReservation.status == "ACTIVE",
+                )
+                .with_for_update()
+            ).scalars()
+        )
+        for reservation in reservations:
+            _release_reservation(db, reservation, actor_id, reason, "RELEASED")
+        return len(reservations)
+
+    @staticmethod
+    def expire_reservations(db: Session, actor_id: uuid.UUID) -> int:
+        """Libera reservas vencidas. Devuelve el número de reservas liberadas."""
+        now = datetime.now(timezone.utc)
+        reservations = list(
+            db.execute(
+                select(StockReservation)
+                .where(
+                    StockReservation.status == "ACTIVE",
+                    StockReservation.expires_at <= now,
+                )
+                .order_by(StockReservation.expires_at)
+                .with_for_update()
+            ).scalars()
+        )
+        for reservation in reservations:
+            _release_reservation(db, reservation, actor_id, "Vencimiento de reserva", "EXPIRED")
+        return len(reservations)
+
+    @staticmethod
+    def _maybe_close_requisition(db: Session, req: Requisition, actor_id: uuid.UUID) -> None:
+        """Cierra la requisición cuando todas sus partidas están conciliadas."""
+        lines = list(
+            db.execute(
+                select(RequisitionLine).where(RequisitionLine.requisition_id == req.id).with_for_update()
+            ).scalars()
+        )
+        if not lines:
+            return
+        for line in lines:
+            if line.status in ("CANCELLED", "CLOSED"):
+                continue
+            if InventoryService.line_delivered_qty(db, line.id) < line.authorised_qty:
+                return
+        for line in lines:
+            if line.status == "CANCELLED":
+                continue
+            line.status = "CLOSED"
+            line.updated_by = actor_id
+        req.status = "CLOSED"
+        req.closed_at = datetime.now(timezone.utc)
+        req.updated_by = actor_id
+        registry = db.get(DocumentRegistry, req.document_registry_id)
+        if registry is not None:
+            record_document_event(db, registry, "REQUISITION_CLOSED", req.status, "CLOSED", actor_id)
+        AuditService.record(
+            db,
+            action="REQUISITION_CLOSE",
+            entity_type="Requisition",
+            entity_id=req.id,
+            actor_id=actor_id,
+            before={"status": "IN_PROGRESS"},
+            after={"status": "CLOSED"},
+            detail="Todas las partidas fueron entregadas o canceladas.",
+        )
+        emit(db, "Requisition", req.id, "REQUISITION_CLOSED", {})
+
+    @staticmethod
     def reserve(
         db: Session,
         actor_id: uuid.UUID,
         payload,
     ) -> StockReservation:
         idem = payload.idempotency_key or f"reserve:{payload.requisition_line_id}:{payload.quantity}"
-        existing = db.execute(
-            select(StockReservation).where(StockReservation.idempotency_key == idem)
-        ).scalar_one_or_none()
-        if existing is not None:
-            return existing
+        record, created = acquire(
+            db,
+            idem,
+            operation="inventory.reserve",
+            entity_type="StockReservation",
+        )
+        if not created:
+            if record.entity_id is not None:
+                existing = db.get(StockReservation, record.entity_id)
+                if existing is not None:
+                    return existing
+            existing = db.execute(
+                select(StockReservation).where(StockReservation.idempotency_key == idem)
+            ).scalar_one_or_none()
+            if existing is not None:
+                return existing
+            _fail("La clave de idempotencia ya fue utilizada por otra operación.")
 
         line = db.execute(
             select(RequisitionLine).where(RequisitionLine.id == payload.requisition_line_id).with_for_update()
@@ -157,6 +299,7 @@ class InventoryService:
             status="ACTIVE",
             expires_at=datetime.now(timezone.utc) + timedelta(days=7),
             idempotency_key=idem,
+            created_by=actor_id,
         )
         db.add(reservation)
         balance.reserved_qty += payload.quantity
@@ -182,6 +325,7 @@ class InventoryService:
             "STOCK_RESERVED",
             {"quantity": str(payload.quantity), "requisition_line_id": str(line.id)},
         )
+        complete(db, record, reservation.id)
         return reservation
 
     @staticmethod
@@ -191,11 +335,23 @@ class InventoryService:
         payload,
     ) -> StockMovement:
         idem = payload.idempotency_key or f"issue:{payload.requisition_line_id}:{payload.quantity}"
-        existing = db.execute(
-            select(StockMovement).where(StockMovement.idempotency_key == idem)
-        ).scalar_one_or_none()
-        if existing is not None:
-            return existing
+        record, created = acquire(
+            db,
+            idem,
+            operation="inventory.issue",
+            entity_type="StockMovement",
+        )
+        if not created:
+            if record.entity_id is not None:
+                existing = db.get(StockMovement, record.entity_id)
+                if existing is not None:
+                    return existing
+            existing = db.execute(
+                select(StockMovement).where(StockMovement.idempotency_key == idem)
+            ).scalar_one_or_none()
+            if existing is not None:
+                return existing
+            _fail("La clave de idempotencia ya fue utilizada por otra operación.")
 
         line = db.execute(
             select(RequisitionLine).where(RequisitionLine.id == payload.requisition_line_id).with_for_update()
@@ -208,10 +364,11 @@ class InventoryService:
         if req.warehouse_id is None:
             _fail("La requisición no tiene almacén definido.")
 
+        now = datetime.now(timezone.utc)
         stmt = select(StockReservation).where(
             StockReservation.requisition_line_id == line.id,
             StockReservation.status == "ACTIVE",
-            StockReservation.expires_at > datetime.now(timezone.utc),
+            StockReservation.expires_at > now,
         )
         if payload.reservation_id is not None:
             stmt = stmt.where(StockReservation.id == payload.reservation_id)
@@ -236,6 +393,7 @@ class InventoryService:
             reservation.consumed_qty += part
             if reservation.consumed_qty >= reservation.quantity:
                 reservation.status = "CONSUMED"
+            reservation.updated_by = actor_id
             remaining -= part
 
         balance.on_hand_qty -= payload.quantity
@@ -290,6 +448,8 @@ class InventoryService:
             "STOCK_ISSUED",
             {"quantity": str(payload.quantity), "requisition_line_id": str(line.id)},
         )
+        complete(db, record, movement.id)
+        InventoryService._maybe_close_requisition(db, req, actor_id)
         return movement
 
     @staticmethod
@@ -307,11 +467,23 @@ class InventoryService:
         source_document_id: uuid.UUID,
         purchase_order_line_id: uuid.UUID | None = None,
     ) -> StockMovement:
-        existing = db.execute(
-            select(StockMovement).where(StockMovement.idempotency_key == idempotency_key)
-        ).scalar_one_or_none()
-        if existing is not None:
-            return existing
+        record, created = acquire(
+            db,
+            idempotency_key,
+            operation="inventory.receive_stock",
+            entity_type="StockMovement",
+        )
+        if not created:
+            if record.entity_id is not None:
+                existing = db.get(StockMovement, record.entity_id)
+                if existing is not None:
+                    return existing
+            existing = db.execute(
+                select(StockMovement).where(StockMovement.idempotency_key == idempotency_key)
+            ).scalar_one_or_none()
+            if existing is not None:
+                return existing
+            _fail("La clave de idempotencia ya fue utilizada por otra operación.")
 
         balance = _get_or_create_balance(db, warehouse_id, item_id)
         balance.on_hand_qty += quantity
@@ -358,4 +530,5 @@ class InventoryService:
             "STOCK_RECEIVED",
             {"quantity": str(quantity), "source": source_document_type},
         )
+        complete(db, record, movement.id)
         return movement

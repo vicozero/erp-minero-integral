@@ -8,19 +8,22 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class RequisitionLineIn(BaseModel):
+    id: uuid.UUID | None = None
+    item_id: uuid.UUID | None = None
+    description: str = Field(min_length=2, max_length=255)
+    uom_id: uuid.UUID
+    requested_qty: Decimal = Field(gt=0, max_digits=18, decimal_places=6)
+    notes: str | None = Field(default=None, max_length=500)
+
+
 class RequisitionDraftUpdate(BaseModel):
     priority: Literal["LOW", "NORMAL", "HIGH", "URGENT"] = "NORMAL"
     justification: str = Field(min_length=4, max_length=1000)
     observations: str | None = Field(default=None, max_length=1000)
     needed_at: datetime | None = None
-
-
-class RequisitionLineIn(BaseModel):
-    item_id: uuid.UUID | None = None
-    description: str = Field(min_length=2, max_length=255)
-    uom_id: uuid.UUID
-    requested_qty: Decimal = Field(gt=0)
-    notes: str | None = Field(default=None, max_length=500)
+    work_order_no: str | None = Field(default=None, max_length=80)
+    lines: list[RequisitionLineIn] | None = Field(default=None, min_length=1)
 
 
 class RequisitionCreate(BaseModel):
@@ -33,6 +36,7 @@ class RequisitionCreate(BaseModel):
     justification: str = Field(min_length=4, max_length=1000)
     observations: str | None = Field(default=None, max_length=1000)
     needed_at: datetime | None = None
+    work_order_no: str | None = Field(default=None, max_length=80)
     lines: list[RequisitionLineIn] = Field(min_length=1)
 
 
@@ -71,6 +75,7 @@ class RequisitionOut(BaseModel):
     justification: str
     observations: str | None
     needed_at: datetime | None
+    work_order_no: str | None = None
     submitted_at: datetime | None
     approved_at: datetime | None
     rejected_at: datetime | None
@@ -82,7 +87,7 @@ class RequisitionOut(BaseModel):
 class DecisionIn(BaseModel):
     requisition_line_id: uuid.UUID
     decision: Literal["APPROVE", "REJECT"]
-    approved_qty: Decimal = Field(default=Decimal("0"), ge=0)
+    approved_qty: Decimal = Field(default=Decimal("0"), ge=0, max_digits=18, decimal_places=6)
     reason: str | None = Field(default=None, max_length=500)
 
 
@@ -92,3 +97,19 @@ class DecisionRequest(BaseModel):
     # devolver el código HTTP correcto antes que un 422 de validación.
     decisions: list[DecisionIn] = Field(default_factory=list)
     reason: str | None = Field(default=None, max_length=500)
+
+
+class RequisitionCancelIn(BaseModel):
+    reason: str = Field(min_length=4, max_length=500)
+
+
+class RequisitionAttachmentOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    requisition_id: uuid.UUID
+    file_name: str
+    content_type: str
+    size_bytes: int
+    sha256: str
+    created_at: datetime

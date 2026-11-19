@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import ForeignKey, Index, Integer, String, UniqueConstraint, func
+from sqlalchemy import CheckConstraint, ForeignKey, Index, Integer, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import AuditMixin, Base, JSON_DICT
@@ -62,6 +62,35 @@ class DocumentRegistry(Base):
     entity_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
     issued_at: Mapped[datetime] = mapped_column(default=func.now(), nullable=False)
     status: Mapped[str] = mapped_column(String(20), default="ISSUED", nullable=False)
+
+
+class IdempotencyRecord(Base):
+    """Reserva atómica de una clave de idempotencia.
+
+    La restricción única de ``idempotency_key`` permite reclamar la operación
+    con ``INSERT ... ON CONFLICT DO NOTHING RETURNING`` dentro de la misma
+    transacción del cambio de negocio. No sustituye a las claves de las tablas
+    de detalle; coordina su creación y permite reproductir el resultado.
+    """
+
+    __tablename__ = "idempotency_record"
+    __table_args__ = (
+        UniqueConstraint("idempotency_key", name="uq_idempotency_record_key"),
+        CheckConstraint(
+            "status IN ('IN_PROGRESS','COMPLETED')", name="ck_idempotency_record_status"
+        ),
+        {"schema": "doc"},
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    idempotency_key: Mapped[str] = mapped_column(String(160), nullable=False)
+    operation: Mapped[str] = mapped_column(String(60), nullable=False)
+    entity_type: Mapped[str] = mapped_column(String(60), nullable=False)
+    entity_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    request_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default="IN_PROGRESS", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(default=func.now(), nullable=False)
+    completed_at: Mapped[datetime | None] = mapped_column(nullable=True)
 
 
 class DocumentEvent(Base):

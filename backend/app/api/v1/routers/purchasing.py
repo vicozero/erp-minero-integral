@@ -11,6 +11,7 @@ from app.modules.identity.models import AppUser
 from app.modules.purchasing.models import PurchaseOrder
 from app.modules.purchasing.schemas import (
     PurchaseFromShortagesIn,
+    PurchaseOrderCancelIn,
     PurchaseOrderOut,
     ReceiptIn,
 )
@@ -61,6 +62,18 @@ def approve(
     actor: AppUser = Depends(require_permission("purchase.order.approve")),
 ):
     po = PurchasingService.approve(db, actor.id, purchase_order_id)
+    db.commit()
+    return po
+
+
+@router.post("/{purchase_order_id}/cancel", response_model=PurchaseOrderOut)
+def cancel(
+    purchase_order_id: uuid.UUID,
+    payload: PurchaseOrderCancelIn,
+    db: Session = Depends(get_db),
+    actor: AppUser = Depends(require_permission("purchase.order.approve")),
+):
+    po = PurchasingService.cancel(db, actor.id, purchase_order_id, payload.reason)
     db.commit()
     return po
 

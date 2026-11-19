@@ -10,7 +10,14 @@ from app.api.v1.deps import require_permission
 from app.db.session import get_db
 from app.modules.identity.models import AppUser
 from app.modules.inventory.models import StockMovement, StockReservation
-from app.modules.inventory.schemas import AvailabilityOut, IssueIn, MovementOut, ReserveIn, ReservationOut
+from app.modules.inventory.schemas import (
+    AvailabilityOut,
+    ExpirationResult,
+    IssueIn,
+    MovementOut,
+    ReserveIn,
+    ReservationOut,
+)
 from app.modules.inventory.service import InventoryService
 
 router = APIRouter(prefix="/inventory", tags=["Almacén"])
@@ -63,6 +70,16 @@ def kardex(
     if warehouse_id is not None:
         stmt = stmt.where(StockMovement.warehouse_id == warehouse_id)
     return list(db.execute(stmt).scalars())
+
+
+@router.post("/reservations/expire", response_model=ExpirationResult)
+def expire_reservations(
+    db: Session = Depends(get_db),
+    actor: AppUser = Depends(require_permission("inventory.reserve")),
+) -> dict:
+    released = InventoryService.expire_reservations(db, actor.id)
+    db.commit()
+    return {"released": released}
 
 
 @router.get("/reservations", response_model=list[ReservationOut])

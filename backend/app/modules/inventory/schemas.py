@@ -44,6 +44,10 @@ class IssueIn(BaseModel):
     idempotency_key: str | None = Field(default=None, max_length=160)
 
 
+class ExpirationResult(BaseModel):
+    released: int
+
+
 class MovementOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

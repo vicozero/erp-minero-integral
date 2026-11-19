@@ -51,6 +51,45 @@ from app.db.session import get_db  # noqa: E402
 from app.main import app  # noqa: E402
 
 
+def reset_test_database(engine: Engine) -> None:
+    """Limpia y vuelve a sembrar la base sintética de pruebas.
+
+    Solo se usa sobre `erp_minero_test`; nunca sobre la base de desarrollo ni
+    sobre datos reales. Garantiza que las pruebas que confirman transacciones
+    no contaminen a las que usan transacciones revertidas.
+    """
+    from sqlalchemy.orm import Session as SessionClass
+
+    from app.db.seed import seed_demo_data
+
+    schemas = ("seg", "org", "mdm", "doc", "req", "wfl", "inv", "pur", "mnt", "cost", "intg", "aud")
+    session = SessionClass(engine, expire_on_commit=False)
+    try:
+        schema_list = ", ".join(f"'{schema}'" for schema in schemas)
+        tables = [
+            row[0]
+            for row in session.execute(
+                text(
+                    "SELECT schemaname || '.' || tablename FROM pg_tables "
+                    f"WHERE schemaname IN ({schema_list})"
+                )
+            )
+        ]
+        if tables:
+            session.execute(text(f"TRUNCATE TABLE {', '.join(tables)} RESTART IDENTITY CASCADE"))
+        seed_demo_data(session)
+        session.commit()
+    finally:
+        session.close()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _reset_database_once(engine: Engine) -> Generator[None, None, None]:
+    """Restablece la base de pruebas una vez al inicio de la sesión."""
+    reset_test_database(engine)
+    yield
+
+
 @pytest.fixture(scope="session")
 def engine() -> Generator[Engine, None, None]:
     """Motor PostgreSQL real. Aplica migraciones antes de cualquier prueba."""

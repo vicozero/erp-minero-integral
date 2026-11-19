@@ -10,10 +10,6 @@ import {
   SuccessMessage,
 } from '../../components/ui';
 
-function newKey(prefix: string): string {
-  return `${prefix}-${crypto.randomUUID()}`;
-}
-
 export function Inventory() {
   const [catalogs, setCatalogs] = useState<Catalogs | null>(null);
   const [requisitions, setRequisitions] = useState<Requisition[]>([]);
@@ -25,6 +21,7 @@ export function Inventory() {
   const [availability, setAvailability] = useState<Availability | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
 
   const lines = useMemo(
     () =>
@@ -65,21 +62,26 @@ export function Inventory() {
   }
 
   async function action(kind: 'reserve' | 'issue') {
+    if (sending) return;
     setError(null);
     setNotice(null);
+    setSending(true);
     try {
+      // Clave estable por intención: repetir clic sin cambiar partida o
+      // cantidad reutiliza la misma operación en lugar de generar otra.
+      const key = `${kind}:${lineId}:${quantity}`;
       if (kind === 'reserve') {
         await api.reserve({
           requisition_line_id: lineId,
           quantity,
-          idempotency_key: newKey('res'),
+          idempotency_key: key,
         });
         setNotice('Reserva registrada. La existencia no se ha descontado.');
       } else {
         const movement = await api.issue({
           requisition_line_id: lineId,
           quantity,
-          idempotency_key: newKey('iss'),
+          idempotency_key: key,
         });
         setNotice(`Entrega ${movement.movement_no} registrada y descontada del inventario.`);
       }
@@ -87,6 +89,24 @@ export function Inventory() {
       await checkAvailability();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'No fue posible completar la operación.');
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function expire() {
+    if (sending) return;
+    setError(null);
+    setNotice(null);
+    setSending(true);
+    try {
+      const result = await api.expireReservations();
+      setNotice(`Se liberaron ${result.released} reservas vencidas.`);
+      await reload();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'No fue posible liberar reservas vencidas.');
+    } finally {
+      setSending(false);
     }
   }
 
@@ -143,11 +163,16 @@ export function Inventory() {
               <input type="number" min="0.000001" step="any" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
             </label>
             <div className="actions">
-              <button className="button button-secondary" type="button" onClick={() => action('reserve')}>Reservar</button>
-              <button className="button button-primary" type="button" onClick={() => action('issue')}>Entregar</button>
+              <button className="button button-secondary" type="button" disabled={sending} onClick={() => action('reserve')}>Reservar</button>
+              <button className="button button-primary" type="button" disabled={sending} onClick={() => action('issue')}>Entregar</button>
             </div>
           </div>
         )}
+        <div className="form-actions">
+          <button className="button button-ghost" type="button" disabled={sending} onClick={expire}>
+            Liberar reservas vencidas
+          </button>
+        </div>
       </Panel>
 
       <Panel title="Kardex transaccional">

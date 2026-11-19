@@ -24,6 +24,7 @@ from app.modules.purchasing.models import (
 from app.modules.requisitions.models import Requisition, RequisitionLine
 from app.shared.constants import APPROVABLE_STATUSES
 from app.shared.events import emit
+from app.shared.idempotency import acquire, complete
 from app.shared.numbering import attach_entity, next_document_number, record_document_event
 
 
@@ -38,9 +39,14 @@ def _fail(detail: str, code: int = status.HTTP_409_CONFLICT) -> NoReturn:
 class PurchasingService:
     @staticmethod
     def line_purchased_qty(db: Session, requisition_line_id: uuid.UUID) -> Decimal:
+        # Las órdenes canceladas o cerradas no deben seguir descontando el
+        # faltante de la requisición original.
         value = db.execute(
-            select(func.coalesce(func.sum(PurchaseOrderLine.ordered_qty - PurchaseOrderLine.cancelled_qty), 0)).where(
-                PurchaseOrderLine.requisition_line_id == requisition_line_id
+            select(func.coalesce(func.sum(PurchaseOrderLine.ordered_qty - PurchaseOrderLine.cancelled_qty), 0))
+            .join(PurchaseOrder, PurchaseOrder.id == PurchaseOrderLine.purchase_order_id)
+            .where(
+                PurchaseOrderLine.requisition_line_id == requisition_line_id,
+                PurchaseOrder.status.notin_(("CANCELLED", "CLOSED")),
             )
         ).scalar_one()
         return Decimal(str(value))
@@ -68,6 +74,28 @@ class PurchasingService:
         warehouse = db.get(Warehouse, payload.warehouse_id)
         if supplier is None or warehouse is None:
             _fail("Proveedor o almacén inexistente.", status.HTTP_404_NOT_FOUND)
+        if supplier.company_id != req.company_id:
+            _fail("El proveedor pertenece a otra compañía.", status.HTTP_422_UNPROCESSABLE_ENTITY)
+        if warehouse.company_id != req.company_id:
+            _fail("El almacén pertenece a otra compañía.", status.HTTP_422_UNPROCESSABLE_ENTITY)
+        if warehouse.mining_unit_id is not None and warehouse.mining_unit_id != req.mining_unit_id:
+            _fail("El almacén pertenece a otra unidad minera.", status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+        idem = payload.idempotency_key or (
+            f"po:{payload.requisition_id}:{payload.supplier_id}:{payload.warehouse_id}"
+        )
+        record, created = acquire(
+            db,
+            idem,
+            operation="purchasing.create_from_shortages",
+            entity_type="PurchaseOrder",
+        )
+        if not created:
+            if record.entity_id is not None:
+                existing = db.get(PurchaseOrder, record.entity_id)
+                if existing is not None:
+                    return existing
+            _fail("La clave de idempotencia ya fue utilizada por otra operación.")
 
         lines = list(
             db.execute(
@@ -137,6 +165,7 @@ class PurchasingService:
             after={"document_no": po_no, "requisition_id": str(req.id), "lines": len(selected)},
         )
         emit(db, "PurchaseOrder", po.id, "PURCHASE_ORDER_CREATED", {"document_no": po_no})
+        complete(db, record, po.id)
         return po
 
     @staticmethod
@@ -165,12 +194,56 @@ class PurchasingService:
         return po
 
     @staticmethod
-    def receive(db: Session, actor_id: uuid.UUID, purchase_order_id: uuid.UUID, payload) -> GoodsReceipt:
-        existing_receipt = db.execute(
-            select(GoodsReceipt).where(GoodsReceipt.idempotency_key == payload.idempotency_key)
+    def cancel(db: Session, actor_id: uuid.UUID, purchase_order_id: uuid.UUID, reason: str) -> PurchaseOrder:
+        po = db.execute(
+            select(PurchaseOrder).where(PurchaseOrder.id == purchase_order_id).with_for_update()
         ).scalar_one_or_none()
-        if existing_receipt is not None:
-            return existing_receipt
+        if po is None:
+            _fail("Orden de compra inexistente.", status.HTTP_404_NOT_FOUND)
+        if po.status in ("RECEIVED", "PARTIALLY_RECEIVED", "CANCELLED", "CLOSED"):
+            _fail("La orden ya fue recibida, cancelada o cerrada.")
+        old_status = po.status
+        po.status = "CANCELLED"
+        po.notes = f"{po.notes or ''}\nCancelación: {reason}".strip()
+        for line in db.execute(
+            select(PurchaseOrderLine).where(PurchaseOrderLine.purchase_order_id == po.id).with_for_update()
+        ).scalars():
+            line.cancelled_qty = line.ordered_qty - line.received_qty
+        registry = db.get(DocumentRegistry, po.document_registry_id)
+        if registry is not None:
+            record_document_event(db, registry, "PURCHASE_ORDER_CANCELLED", old_status, "CANCELLED", actor_id, {"reason": reason})
+        AuditService.record(
+            db,
+            action="PURCHASE_ORDER_CANCEL",
+            entity_type="PurchaseOrder",
+            entity_id=po.id,
+            actor_id=actor_id,
+            before={"status": old_status},
+            after={"status": "CANCELLED"},
+            detail=reason,
+        )
+        emit(db, "PurchaseOrder", po.id, "PURCHASE_ORDER_CANCELLED", {"reason": reason})
+        return po
+
+    @staticmethod
+    def receive(db: Session, actor_id: uuid.UUID, purchase_order_id: uuid.UUID, payload) -> GoodsReceipt:
+        record, created = acquire(
+            db,
+            payload.idempotency_key,
+            operation="purchasing.receive",
+            entity_type="GoodsReceipt",
+        )
+        if not created:
+            if record.entity_id is not None:
+                existing = db.get(GoodsReceipt, record.entity_id)
+                if existing is not None:
+                    return existing
+            existing_receipt = db.execute(
+                select(GoodsReceipt).where(GoodsReceipt.idempotency_key == payload.idempotency_key)
+            ).scalar_one_or_none()
+            if existing_receipt is not None:
+                return existing_receipt
+            _fail("La clave de idempotencia ya fue utilizada por otra operación.")
 
         po = db.execute(
             select(PurchaseOrder).where(PurchaseOrder.id == purchase_order_id).with_for_update()
@@ -275,4 +348,5 @@ class PurchasingService:
             after={"document_no": grn_no, "purchase_order_id": str(po.id), "lines": len(po_lines)},
         )
         emit(db, "GoodsReceipt", grn.id, "GOODS_RECEIPT_POSTED", {"document_no": grn_no})
+        complete(db, record, grn.id)
         return grn

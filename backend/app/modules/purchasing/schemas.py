@@ -11,6 +11,7 @@ class PurchaseFromShortagesIn(BaseModel):
     supplier_id: uuid.UUID
     warehouse_id: uuid.UUID
     notes: str | None = None
+    idempotency_key: str | None = Field(default=None, min_length=3, max_length=160)
 
 
 class PurchaseOrderLineOut(BaseModel):
@@ -36,6 +37,10 @@ class PurchaseOrderOut(BaseModel):
     warehouse_id: uuid.UUID
     status: str
     lines: list[PurchaseOrderLineOut] = []
+
+
+class PurchaseOrderCancelIn(BaseModel):
+    reason: str = Field(min_length=4, max_length=500)
 
 
 class ReceiptLineIn(BaseModel):

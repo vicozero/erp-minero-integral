@@ -11,10 +11,6 @@ import {
   SuccessMessage,
 } from '../../components/ui';
 
-function newKey(prefix: string): string {
-  return `${prefix}-${crypto.randomUUID()}`;
-}
-
 export function Purchases() {
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
   const [requisitions, setRequisitions] = useState<Requisition[]>([]);
@@ -26,6 +22,7 @@ export function Purchases() {
   const [receiveQty, setReceiveQty] = useState('1');
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
 
   const eligible = useMemo(
     () => requisitions.filter((req) => ['APPROVED', 'PARTIALLY_APPROVED'].includes(req.status)),
@@ -54,31 +51,58 @@ export function Purchases() {
   }, []);
 
   async function createOrder() {
+    if (sending) return;
     setError(null);
     setNotice(null);
+    setSending(true);
     try {
       const order = await api.createPurchase({
         requisition_id: requisitionId,
         supplier_id: supplierId,
         warehouse_id: warehouseId,
         notes: 'Generada desde la interfaz local',
+        idempotency_key: `po:${requisitionId}:${supplierId}:${warehouseId}`,
       });
       setNotice(`Orden ${order.document_no} creada con ${order.lines.length} partidas.`);
       await reload();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'No fue posible crear la orden.');
+    } finally {
+      setSending(false);
     }
   }
 
   async function approveOrder(id: string) {
+    if (sending) return;
     setError(null);
     setNotice(null);
+    setSending(true);
     try {
       const order = await api.approvePurchase(id);
       setNotice(`Orden ${order.document_no} aprobada.`);
       await reload();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'No fue posible aprobar.');
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function cancelOrder(id: string) {
+    if (sending) return;
+    const reason = window.prompt('Motivo de la cancelación de la orden (mínimo 4 caracteres):');
+    if (!reason) return;
+    setError(null);
+    setNotice(null);
+    setSending(true);
+    try {
+      await api.cancelPurchase(id, reason);
+      setNotice('Orden cancelada. El faltante vuelve a estar disponible.');
+      await reload();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'No fue posible cancelar la orden.');
+    } finally {
+      setSending(false);
     }
   }
 
@@ -87,21 +111,27 @@ export function Purchases() {
   );
 
   async function receiveOrder() {
+    if (sending) return;
     if (!orderForSelectedLine) {
       setError('Seleccione una partida de orden válida.');
       return;
     }
     setError(null);
     setNotice(null);
+    setSending(true);
     try {
       const receipt = await api.receivePurchase(orderForSelectedLine.id, {
         lines: [{ purchase_order_line_id: receiveLineId, quantity: receiveQty }],
-        idempotency_key: newKey('grn'),
+        // Clave estable por intención: un segundo clic sin cambios no genera
+        // una segunda recepción ni una segunda entrada de inventario.
+        idempotency_key: `grn:${receiveLineId}:${receiveQty}`,
       });
       setNotice(`Recepción ${receipt.document_no} registrada. Entrada de inventario generada.`);
       await reload();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'No fue posible recibir.');
+    } finally {
+      setSending(false);
     }
   }
 
@@ -129,7 +159,7 @@ export function Purchases() {
                 {catalogs.warehouses.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
               </select>
             </label>
-            <button className="button button-primary align-end" type="button" onClick={createOrder}>
+            <button className="button button-primary align-end" type="button" disabled={sending} onClick={createOrder}>
               Generar orden
             </button>
           </div>
@@ -154,7 +184,7 @@ export function Purchases() {
           </label>
           <div className="actions">
             {orderForSelectedLine && (
-              <button className="button button-secondary" type="button" onClick={receiveOrder}>
+              <button className="button button-secondary" type="button" disabled={sending} onClick={receiveOrder}>
                 Registrar recepción
               </button>
             )}
@@ -185,8 +215,23 @@ export function Purchases() {
             <div className="form-actions">
               <StatusBadge status={order.status} />
               {order.status === 'DRAFT' && (
-                <button className="button button-primary button-small" type="button" onClick={() => approveOrder(order.id)}>
+                <button
+                  className="button button-primary button-small"
+                  type="button"
+                  disabled={sending}
+                  onClick={() => approveOrder(order.id)}
+                >
                   Aprobar orden
+                </button>
+              )}
+              {['DRAFT', 'APPROVED', 'SENT'].includes(order.status) && (
+                <button
+                  className="button button-ghost button-small"
+                  type="button"
+                  disabled={sending}
+                  onClick={() => cancelOrder(order.id)}
+                >
+                  Cancelar orden
                 </button>
               )}
             </div>

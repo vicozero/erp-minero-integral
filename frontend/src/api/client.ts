@@ -10,6 +10,8 @@ import type {
   Permission,
   PurchaseOrder,
   Requisition,
+  RequisitionAttachment,
+  RequisitionFilters,
   RequisitionPayload,
   Role,
   Session,
@@ -50,7 +52,7 @@ export class ApiError extends Error {
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const method = (init.method ?? 'GET').toUpperCase();
   const headers = new Headers(init.headers);
-  if (init.body !== undefined) {
+  if (init.body !== undefined && !(init.body instanceof FormData)) {
     headers.set('Content-Type', 'application/json');
   }
   if (!SAFE_METHODS.has(method)) {
@@ -133,7 +135,14 @@ export const api = {
 
   // --- Operación ------------------------------------------------------
   catalogs: () => request<Catalogs>('/api/v1/catalogs'),
-  requisitions: () => request<Requisition[]>('/api/v1/requisitions'),
+  requisitions: (filters: RequisitionFilters = {}) => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value) params.set(key, value);
+    });
+    const query = params.toString();
+    return request<Requisition[]>(`/api/v1/requisitions${query ? `?${query}` : ''}`);
+  },
   createRequisition: (payload: RequisitionPayload) =>
     request<Requisition>('/api/v1/requisitions', {
       method: 'POST',
@@ -155,7 +164,29 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ decisions, reason }),
     }),
+  updateRequisitionDraft: (id: string, payload: RequisitionPayload) =>
+    request<Requisition>(`/api/v1/requisitions/${id}/draft`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+  cancelRequisition: (id: string, reason: string) =>
+    request<Requisition>(`/api/v1/requisitions/${id}/cancel`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    }),
   history: (id: string) => request<HistoryEvent[]>(`/api/v1/requisitions/${id}/history`),
+  attachments: (id: string) =>
+    request<RequisitionAttachment[]>(`/api/v1/requisitions/${id}/attachments`),
+  uploadAttachment: (id: string, file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    return request<RequisitionAttachment>(`/api/v1/requisitions/${id}/attachments`, {
+      method: 'POST',
+      body: form,
+    });
+  },
+  attachmentUrl: (requisitionId: string, attachmentId: string) =>
+    `${API_URL}/api/v1/requisitions/${requisitionId}/attachments/${attachmentId}/download`,
   availability: (itemId: string, warehouseId: string) =>
     request<Availability>(
       `/api/v1/inventory/availability?item_id=${itemId}&warehouse_id=${warehouseId}`,
@@ -179,6 +210,8 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
+  expireReservations: () =>
+    request<{ released: number }>('/api/v1/inventory/reservations/expire', { method: 'POST' }),
   kardex: () => request<StockMovement[]>('/api/v1/inventory/kardex'),
   purchases: () => request<PurchaseOrder[]>('/api/v1/purchases'),
   createPurchase: (payload: {
@@ -186,6 +219,7 @@ export const api = {
     supplier_id: string;
     warehouse_id: string;
     notes?: string;
+    idempotency_key?: string;
   }) =>
     request<PurchaseOrder>('/api/v1/purchases/from-shortages', {
       method: 'POST',
@@ -193,6 +227,11 @@ export const api = {
     }),
   approvePurchase: (id: string) =>
     request<PurchaseOrder>(`/api/v1/purchases/${id}/approve`, { method: 'POST' }),
+  cancelPurchase: (id: string, reason: string) =>
+    request<PurchaseOrder>(`/api/v1/purchases/${id}/cancel`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    }),
   receivePurchase: (
     id: string,
     payload: {

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.api.v1.deps import require_permission
@@ -12,6 +13,8 @@ from app.modules.identity.service import IdentityService
 from app.modules.requisitions.models import Requisition
 from app.modules.requisitions.schemas import (
     DecisionRequest,
+    RequisitionAttachmentOut,
+    RequisitionCancelIn,
     RequisitionCreate,
     RequisitionDraftUpdate,
     RequisitionOut,
@@ -27,7 +30,6 @@ def create(
     db: Session = Depends(get_db),
     actor: AppUser = Depends(require_permission("requisition.create")),
 ) -> dict:
-    IdentityService.assert_department_access(db, actor.id, payload.department_id)
     req = Service.create(db, actor.id, payload)
     db.commit()
     return Service.to_out(db, req)
@@ -35,6 +37,13 @@ def create(
 
 @router.get("", response_model=list[RequisitionOut])
 def list_all(
+    status_filter: str | None = Query(default=None, alias="status"),
+    priority: str | None = None,
+    department_id: uuid.UUID | None = None,
+    equipment_id: uuid.UUID | None = None,
+    document_no: str | None = None,
+    date_from: datetime | None = None,
+    date_to: datetime | None = None,
     db: Session = Depends(get_db),
     actor: AppUser = Depends(require_permission("requisition.view")),
 ) -> list[dict]:
@@ -42,6 +51,20 @@ def list_all(
     if not IdentityService.is_admin(db, actor.id):
         allowed = IdentityService.department_ids(db, actor.id)
         stmt = stmt.filter(Requisition.department_id.in_(allowed))
+    if status_filter:
+        stmt = stmt.filter(Requisition.status == status_filter)
+    if priority:
+        stmt = stmt.filter(Requisition.priority == priority)
+    if department_id is not None:
+        stmt = stmt.filter(Requisition.department_id == department_id)
+    if equipment_id is not None:
+        stmt = stmt.filter(Requisition.equipment_id == equipment_id)
+    if document_no:
+        stmt = stmt.filter(Requisition.document_no.ilike(f"%{document_no}%"))
+    if date_from is not None:
+        stmt = stmt.filter(Requisition.created_at >= date_from)
+    if date_to is not None:
+        stmt = stmt.filter(Requisition.created_at <= date_to)
     reqs = stmt.order_by(Requisition.created_at.desc()).all()
     return [Service.to_out(db, req) for req in reqs]
 
@@ -94,10 +117,79 @@ def decide(
     return Service.to_out(db, req)
 
 
+@router.post("/{requisition_id}/cancel", response_model=RequisitionOut)
+def cancel(
+    requisition_id: uuid.UUID,
+    payload: RequisitionCancelIn,
+    db: Session = Depends(get_db),
+    actor: AppUser = Depends(require_permission("requisition.cancel")),
+) -> dict:
+    req = Service.cancel(db, actor.id, requisition_id, payload.reason)
+    db.commit()
+    return Service.to_out(db, req)
+
+
 @router.get("/{requisition_id}/history")
 def history(
     requisition_id: uuid.UUID,
     db: Session = Depends(get_db),
-    _actor: AppUser = Depends(require_permission("requisition.history.view")),
+    actor: AppUser = Depends(require_permission("requisition.history.view")),
 ) -> list[dict]:
+    req = db.get(Requisition, requisition_id)
+    if req is None:
+        raise HTTPException(status_code=404, detail="Requisición inexistente.")
+    IdentityService.assert_department_access(db, actor.id, req.department_id)
     return Service.history(db, requisition_id)
+
+
+@router.post(
+    "/{requisition_id}/attachments",
+    response_model=RequisitionAttachmentOut,
+    status_code=status.HTTP_201_CREATED,
+)
+def upload_attachment(
+    requisition_id: uuid.UUID,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    actor: AppUser = Depends(require_permission("requisition.create")),
+):
+    content = file.file.read()
+    attachment = Service.add_attachment(
+        db,
+        actor.id,
+        requisition_id,
+        file_name=file.filename or "archivo",
+        content_type=file.content_type or "application/octet-stream",
+        content=content,
+    )
+    db.commit()
+    return attachment
+
+
+@router.get("/{requisition_id}/attachments", response_model=list[RequisitionAttachmentOut])
+def list_attachments(
+    requisition_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    actor: AppUser = Depends(require_permission("requisition.view")),
+):
+    return Service.list_attachments(db, actor.id, requisition_id)
+
+
+@router.get("/{requisition_id}/attachments/{attachment_id}/download")
+def download_attachment(
+    requisition_id: uuid.UUID,
+    attachment_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    actor: AppUser = Depends(require_permission("requisition.view")),
+):
+    from fastapi.responses import FileResponse
+
+    path = Service.attachment_path(db, actor.id, attachment_id)
+    return FileResponse(
+        path,
+        media_type="application/octet-stream",
+        filename=next(
+            (a.file_name for a in Service.list_attachments(db, actor.id, requisition_id) if a.id == attachment_id),
+            "adjunto",
+        ),
+    )

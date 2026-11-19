@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import CheckConstraint, ForeignKey, Numeric, String, Text, UniqueConstraint
+from sqlalchemy import BigInteger, CheckConstraint, ForeignKey, Numeric, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import AuditMixin, Base
@@ -52,6 +52,7 @@ class Requisition(AuditMixin, Base):
     justification: Mapped[str] = mapped_column(Text, nullable=False)
     observations: Mapped[str | None] = mapped_column(Text, nullable=True)
     needed_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    work_order_no: Mapped[str | None] = mapped_column(String(80), nullable=True)
     submitted_at: Mapped[datetime | None] = mapped_column(nullable=True)
     approved_at: Mapped[datetime | None] = mapped_column(nullable=True)
     rejected_at: Mapped[datetime | None] = mapped_column(nullable=True)
@@ -93,3 +94,34 @@ class RequisitionLine(AuditMixin, Base):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     requisition: Mapped["Requisition"] = relationship(back_populates="lines")
+
+
+class RequisitionAttachment(Base):
+    """Metadatos de un archivo adjunto almacenado fuera de la base.
+
+    El contenido se guarda en un directorio controlado por configuración; en
+    la base solo se conserva el nombre lógico, el nombre físico generado, el
+    tipo MIME, el tamaño y el SHA-256 del contenido. Es append-only: solo se
+    conservan ``id`` y ``created_at`` además de los datos del archivo.
+    """
+
+    __tablename__ = "requisition_attachment"
+    __table_args__ = (
+        UniqueConstraint("stored_name", name="uq_requisition_attachment_stored_name"),
+        CheckConstraint("size_bytes > 0", name="ck_requisition_attachment_size"),
+        {"schema": "req"},
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    created_at: Mapped[datetime] = mapped_column(default=func.now(), nullable=False)
+    requisition_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("req.requisition.id", ondelete="RESTRICT"), nullable=False
+    )
+    file_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    stored_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    content_type: Mapped[str] = mapped_column(String(120), nullable=False)
+    size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    uploaded_by: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("seg.app_user.id", ondelete="RESTRICT"), nullable=False
+    )

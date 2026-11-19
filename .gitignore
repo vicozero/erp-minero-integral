@@ -22,6 +22,9 @@ frontend/dist/
 frontend/coverage/
 npm-debug.log*
 
+# Almacenamiento controlado de adjuntos (Fase 4)
+var/
+
 # Base de datos y exportaciones
 *.sql
 *.dump

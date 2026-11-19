@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from functools import lru_cache
 from pathlib import Path
 
@@ -9,7 +10,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # El repositorio vive en E:\ERP_MINERO; este archivo está en
 # E:\ERP_MINERO\backend\app\core\config.py. La ruta absoluta evita depender
 # del directorio de trabajo al ejecutar pytest, alembic o uvicorn.
-ENV_FILE = Path(__file__).resolve().parents[3] / ".env"
+# ERP_ENV_FILE permite seleccionar un perfil alternativo (por ejemplo
+# `.env.pilot`) sin sobrescribir el `.env` local existente.
+DEFAULT_ENV_FILE = Path(__file__).resolve().parents[3] / ".env"
+ENV_FILE = Path(os.getenv("ERP_ENV_FILE", str(DEFAULT_ENV_FILE)))
 
 
 class Settings(BaseSettings):
@@ -25,6 +29,12 @@ class Settings(BaseSettings):
     API_V1_PREFIX: str = "/api/v1"
     TIMEZONE: str = "America/Mexico_City"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+
+    # El portal se sirve desde el mismo origen que la API, por lo que no
+    # necesita CORS. Los orígenes por defecto solo cubren el servidor de
+    # desarrollo de Vite en localhost; el perfil piloto puede dejarlos vacíos.
+    CORS_ALLOW_ORIGINS: str = "http://127.0.0.1:5173,http://localhost:5173"
+    SECURITY_HSTS_ENABLED: bool = False
 
     # Cookies de sesión del portal web. Secure debe activarse únicamente cuando
     # el ERP se sirva por HTTPS (intranet con TLS).

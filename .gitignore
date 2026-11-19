@@ -15,6 +15,7 @@ build/
 .env
 .env.*
 !.env.example
+!.env.pilot.example
 
 # Node
 node_modules/

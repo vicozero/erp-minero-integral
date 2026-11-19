@@ -22,7 +22,10 @@ import type {
   UserUpdatePayload,
 } from './types';
 
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8000';
+// En el portal compilado la API está en el mismo origen, detrás del proxy
+// inverso. VITE_API_URL solo se usa en configuraciones temporales de
+// desarrollo; si está vacío, todas las peticiones son relativas.
+const API_URL = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '');
 const CSRF_COOKIE = 'erp_csrf';
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 

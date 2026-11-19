@@ -67,8 +67,50 @@ PERMISSIONS_WMS: tuple[str, ...] = (
     "warehouse.location.manage",
 )
 
+# Lote B del WMS: contratos de movimientos. B.0 solo registra los códigos;
+# no hay endpoints ni reglas de negocio que dependan de decisiones pendientes.
+PERMISSIONS_WMS_LOTE_B_CREATE: tuple[str, ...] = (
+    "wms.receipt.create",
+    "wms.issue.create",
+    "wms.return.create",
+    "wms.reversal.create",
+)
+PERMISSIONS_WMS_LOTE_B_APPROVE: tuple[str, ...] = (
+    "wms.receipt.approve",
+    "wms.issue.approve",
+    "wms.return.approve",
+    "wms.reversal.approve",
+)
+PERMISSIONS_WMS_LOTE_B_VIEW: tuple[str, ...] = (
+    "wms.kardex.view",
+    "warehouse.stock.view",
+)
+PERMISSIONS_WMS_LOTE_B: tuple[str, ...] = (
+    PERMISSIONS_WMS_LOTE_B_CREATE
+    + PERMISSIONS_WMS_LOTE_B_APPROVE
+    + PERMISSIONS_WMS_LOTE_B_VIEW
+)
+
+# Aliases en español de los permisos operativos del Lote B. Se conserva
+# `almacenes.kardex -> inventory.kardex.view` para no romper el contrato actual.
+PERMISSIONS_WMS_LOTE_B_ALIASES: tuple[str, ...] = (
+    "almacenes.entradas",
+    "almacenes.salidas",
+    "almacenes.devoluciones",
+    "almacenes.reversos",
+    "entradas.crear",
+    "salidas.crear",
+    "devoluciones.crear",
+    "reversos.crear",
+)
+
 PERMISSIONS: tuple[str, ...] = (
-    PERMISSIONS_LEGACY + PERMISSIONS_FASE3 + PERMISSIONS_INTERNAL + PERMISSIONS_WMS
+    PERMISSIONS_LEGACY
+    + PERMISSIONS_FASE3
+    + PERMISSIONS_INTERNAL
+    + PERMISSIONS_WMS
+    + PERMISSIONS_WMS_LOTE_B
+    + PERMISSIONS_WMS_LOTE_B_ALIASES
 )
 
 # Alias español -> código canónico heredado. Permite que una política escrita
@@ -98,6 +140,14 @@ PERMISSION_ALIASES: dict[str, str] = {
     "catalogo.administrar": "catalog.manage",
     "ubicaciones.consultar": "warehouse.location.view",
     "ubicaciones.administrar": "warehouse.location.manage",
+    "almacenes.entradas": "wms.receipt.create",
+    "almacenes.salidas": "wms.issue.create",
+    "almacenes.devoluciones": "wms.return.create",
+    "almacenes.reversos": "wms.reversal.create",
+    "entradas.crear": "wms.receipt.create",
+    "salidas.crear": "wms.issue.create",
+    "devoluciones.crear": "wms.return.create",
+    "reversos.crear": "wms.reversal.create",
 }
 
 
@@ -178,17 +228,33 @@ _LECTURA = (
 _WMS_READ = ("catalog.view", "warehouse.location.view")
 _WMS_MANAGE = ("catalog.manage", "warehouse.location.manage")
 
+# Lote B: creación y consulta para almacén; aprobación para el aprobador;
+# gerencia y auditoría solo lectura. ADMIN ya recibe `PERMISSIONS` completo.
+_WMS_B_CREATE = PERMISSIONS_WMS_LOTE_B_CREATE + PERMISSIONS_WMS_LOTE_B_ALIASES
+_WMS_B_APPROVE = PERMISSIONS_WMS_LOTE_B_APPROVE
+_WMS_B_VIEW = PERMISSIONS_WMS_LOTE_B_VIEW
+
 ROLE_PERMISSIONS: dict[str, tuple[str, ...]] = {
     "ADMIN": PERMISSIONS,
     "SOLICITANTE": _SOLICITANTE + _WMS_READ,
     "JEFE_DEPARTAMENTO": _SOLICITANTE + _APROBADOR + ("departamentos.consultar",) + _WMS_READ,
-    "APROBADOR": _APROBADOR + _WMS_READ,
-    "ALMACENISTA": _ALMACEN + _WMS_READ + _WMS_MANAGE,
-    "ALMACEN": _ALMACEN + _WMS_READ + _WMS_MANAGE,
+    "APROBADOR": _APROBADOR + _WMS_READ + _WMS_B_APPROVE + _WMS_B_VIEW,
+    "ALMACENISTA": _ALMACEN + _WMS_READ + _WMS_MANAGE + _WMS_B_CREATE + _WMS_B_VIEW,
+    "ALMACEN": _ALMACEN + _WMS_READ + _WMS_MANAGE + _WMS_B_CREATE + _WMS_B_VIEW,
     "COMPRADOR": _COMPRAS + _WMS_READ,
     "COMPRAS": _COMPRAS + _WMS_READ,
-    "GERENCIA": _LECTURA + ("audit.view", "auditoria.consultar", "sesiones.consultar") + _WMS_READ,
-    "AUDITOR": _LECTURA + ("audit.view", "auditoria.consultar", "usuarios.consultar") + _WMS_READ,
+    "GERENCIA": (
+        _LECTURA
+        + ("audit.view", "auditoria.consultar", "sesiones.consultar")
+        + _WMS_READ
+        + _WMS_B_VIEW
+    ),
+    "AUDITOR": (
+        _LECTURA
+        + ("audit.view", "auditoria.consultar", "usuarios.consultar")
+        + _WMS_READ
+        + _WMS_B_VIEW
+    ),
 }
 
 ROLE_LABELS: dict[str, str] = {

@@ -39,6 +39,11 @@ class Settings(BaseSettings):
     ALLOWED_HOSTS: str = "127.0.0.1,localhost,testserver"
     SECURITY_HSTS_ENABLED: bool = False
 
+    # Lote B del WMS. Desactivado por defecto: B.0 solo define contratos y
+    # permisos; ningún router nuevo se registra todavía. Su activación se
+    # decidirá por lote, previa aprobación y pruebas.
+    WMS_LOTE_B_ENABLED: bool = False
+
     # Cookies de sesión del portal web. Secure debe activarse únicamente cuando
     # el ERP se sirva por HTTPS (intranet con TLS).
     SESSION_COOKIE_SECURE: bool = False

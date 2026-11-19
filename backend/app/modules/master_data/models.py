@@ -11,7 +11,7 @@ from app.db.base import AuditMixin, Base
 
 class Uom(AuditMixin, Base):
     __tablename__ = "uom"
-    __table_args__ = (UniqueConstraint("code", name="uq_code"), {"schema": "mdm"})
+    __table_args__ = (UniqueConstraint("code", name="uq_uom_code"), {"schema": "mdm"})
 
     code: Mapped[str] = mapped_column(String(20), nullable=False)
     name: Mapped[str] = mapped_column(String(120), nullable=False)
@@ -21,7 +21,7 @@ class Uom(AuditMixin, Base):
 class Item(AuditMixin, Base):
     __tablename__ = "item"
     __table_args__ = (
-        UniqueConstraint("company_id", "code", name="uq_company_code"),
+        UniqueConstraint("company_id", "code", name="uq_item_company_code"),
         CheckConstraint("item_type IN ('STOCK','SERVICE','FIXED_ASSET')", name="item_type_valido"),
         CheckConstraint("standard_cost >= 0", name="standard_cost_no_negativo"),
         {"schema": "mdm"},
@@ -44,7 +44,7 @@ class Item(AuditMixin, Base):
 class Supplier(AuditMixin, Base):
     __tablename__ = "supplier"
     __table_args__ = (
-        UniqueConstraint("company_id", "code", name="uq_company_code"),
+        UniqueConstraint("company_id", "code", name="uq_supplier_company_code"),
         {"schema": "mdm"},
     )
 

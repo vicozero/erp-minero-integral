@@ -11,8 +11,7 @@ from app.db.base import AuditMixin, Base
 class Company(AuditMixin, Base):
     __tablename__ = "company"
     __table_args__ = (
-        UniqueConstraint("code", name="uq_code"),
-        CheckConstraint("is_active IN (0,1)", name="is_active_valido"),
+        UniqueConstraint("code", name="uq_company_code"),
         {"schema": "org"},
     )
 
@@ -24,7 +23,7 @@ class Company(AuditMixin, Base):
 class MiningUnit(AuditMixin, Base):
     __tablename__ = "mining_unit"
     __table_args__ = (
-        UniqueConstraint("company_id", "code", name="uq_company_code"),
+        UniqueConstraint("company_id", "code", name="uq_mining_unit_company_code"),
         CheckConstraint("status IN ('ACTIVE','INACTIVE')", name="status_valido"),
         {"schema": "org"},
     )
@@ -38,7 +37,7 @@ class MiningUnit(AuditMixin, Base):
 class Department(AuditMixin, Base):
     __tablename__ = "department"
     __table_args__ = (
-        UniqueConstraint("company_id", "code", name="uq_company_code"),
+        UniqueConstraint("company_id", "code", name="uq_department_company_code"),
         {"schema": "org"},
     )
 
@@ -56,7 +55,7 @@ class Department(AuditMixin, Base):
 class Warehouse(AuditMixin, Base):
     __tablename__ = "warehouse"
     __table_args__ = (
-        UniqueConstraint("company_id", "code", name="uq_company_code"),
+        UniqueConstraint("company_id", "code", name="uq_warehouse_company_code"),
         CheckConstraint(
             "warehouse_type IN ('MAIN','SURFACE','UNDERGROUND','TRANSIT','SCRAP')",
             name="warehouse_type_valido",
@@ -77,7 +76,7 @@ class Warehouse(AuditMixin, Base):
 class Employee(AuditMixin, Base):
     __tablename__ = "employee"
     __table_args__ = (
-        UniqueConstraint("company_id", "employee_code", name="uq_company_code"),
+        UniqueConstraint("company_id", "employee_code", name="uq_employee_company_code"),
         {"schema": "org"},
     )
 

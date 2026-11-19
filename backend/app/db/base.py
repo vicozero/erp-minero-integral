@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import JSON, ForeignKey, MetaData, func
+from sqlalchemy import JSON, DateTime, ForeignKey, MetaData, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -20,6 +20,8 @@ JSON_DICT = JSON().with_variant(JSONB(), "postgresql")
 
 class Base(DeclarativeBase):
     metadata = MetaData(naming_convention=NAMING_CONVENTION)
+    # Toda columna Mapped[datetime] se convierte en TIMESTAMPTZ en PostgreSQL.
+    type_annotation_map = {datetime: DateTime(timezone=True)}
 
 
 class AuditMixin:

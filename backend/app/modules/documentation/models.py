@@ -11,7 +11,7 @@ from app.db.base import AuditMixin, Base, JSON_DICT
 
 class DocumentType(AuditMixin, Base):
     __tablename__ = "document_type"
-    __table_args__ = (UniqueConstraint("code", name="uq_code"), {"schema": "doc"})
+    __table_args__ = (UniqueConstraint("code", name="uq_document_type_code"), {"schema": "doc"})
 
     code: Mapped[str] = mapped_column(String(20), nullable=False)
     name: Mapped[str] = mapped_column(String(120), nullable=False)

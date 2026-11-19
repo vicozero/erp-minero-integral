@@ -2,79 +2,102 @@ from __future__ import annotations
 
 import os
 import uuid
+from collections.abc import Generator
+from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
 
-os.environ.setdefault("DATABASE_URL", "sqlite+pysqlite:///:memory:")
-os.environ.setdefault("SECRET_KEY", "clave-de-prueba-sin-valor-real-0123456789")
+BACKEND_DIR = Path(__file__).resolve().parents[1]
+ENV_FILE = BACKEND_DIR.parent / ".env"
+TEST_DATABASE_NAME = "erp_minero_test"
+
+
+def _load_env_file() -> dict[str, str]:
+    """Lee el .env local sin imprimir ni versionar credenciales."""
+    values: dict[str, str] = {}
+    for raw_line in ENV_FILE.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        values[key.strip()] = value.strip().strip('"').strip("'")
+    return values
+
+
+_env_values = _load_env_file()
+for _key in ("DATABASE_URL", "SECRET_KEY", "DEMO_PASSWORD"):
+    if _key in _env_values:
+        os.environ[_key] = _env_values[_key]
+
+# Las pruebas jamás deben apuntar a la base de desarrollo. La URL se deriva
+# de la configuración real, cambiando únicamente el nombre de la base.
+_parts = urlsplit(os.environ["DATABASE_URL"])
+os.environ["DATABASE_URL"] = urlunsplit(
+    (_parts.scheme, _parts.netloc, f"/{TEST_DATABASE_NAME}", _parts.query, _parts.fragment)
+)
+os.environ["ENV"] = "test"
 os.environ.setdefault("DEMO_PASSWORD", "DemoSoloPruebas123")
-os.environ.setdefault("ENV", "test")
 
 import pytest  # noqa: E402
+from alembic import command  # noqa: E402
+from alembic.config import Config  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
-from sqlalchemy import create_engine  # noqa: E402
+from sqlalchemy import create_engine, text  # noqa: E402
+from sqlalchemy.engine import Engine  # noqa: E402
 from sqlalchemy.orm import Session  # noqa: E402
-from sqlalchemy.pool import StaticPool  # noqa: E402
 
 from app.core.security import create_access_token  # noqa: E402
-from app.db.base import Base  # noqa: E402
 from app.db.seed import seed_demo_data  # noqa: E402
 from app.db.session import get_db  # noqa: E402
 from app.main import app  # noqa: E402
-from app.modules.audit import models as audit_models  # noqa: E402,F401
-from app.modules.costing import models as costing_models  # noqa: E402,F401
-from app.modules.documentation import models as document_models  # noqa: E402,F401
-from app.modules.identity import models as identity_models  # noqa: E402,F401
-from app.modules.integrations import models as integration_models  # noqa: E402,F401
-from app.modules.inventory import models as inventory_models  # noqa: E402,F401
-from app.modules.maintenance import models as maintenance_models  # noqa: E402,F401
-from app.modules.master_data import models as master_models  # noqa: E402,F401
-from app.modules.organization import models as organization_models  # noqa: E402,F401
-from app.modules.purchasing import models as purchasing_models  # noqa: E402,F401
-from app.modules.requisitions import models as requisition_models  # noqa: E402,F401
-from app.modules.workflow import models as workflow_models  # noqa: E402,F401
-
-SCHEMAS = (
-    "seg",
-    "org",
-    "mdm",
-    "doc",
-    "req",
-    "wfl",
-    "inv",
-    "pur",
-    "mnt",
-    "cost",
-    "intg",
-    "aud",
-)
 
 
-@pytest.fixture()
-def engine():
-    mapping = {schema: None for schema in SCHEMAS}
-    eng = create_engine(
-        "sqlite+pysqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        execution_options={"schema_translate_map": mapping},
-        poolclass=StaticPool,
-        future=True,
-    )
-    Base.metadata.create_all(eng)
+@pytest.fixture(scope="session")
+def engine() -> Generator[Engine, None, None]:
+    """Motor PostgreSQL real. Aplica migraciones antes de cualquier prueba."""
+    from app.core.config import settings
+
+    if not settings.DATABASE_URL.startswith("postgresql+psycopg://"):
+        raise RuntimeError("Las pruebas requieren PostgreSQL real.")
+
+    alembic_config = Config(str(BACKEND_DIR / "alembic.ini"))
+    alembic_config.set_main_option("script_location", str(BACKEND_DIR / "migrations"))
+    command.upgrade(alembic_config, "head")
+
+    eng = create_engine(settings.DATABASE_URL, pool_pre_ping=True, future=True)
+    with eng.connect() as connection:
+        database = connection.execute(text("SELECT current_database()")).scalar_one()
+        if database != TEST_DATABASE_NAME:
+            raise RuntimeError(f"Base de pruebas inesperada: {database}")
+
     yield eng
-    Base.metadata.drop_all(eng)
     eng.dispose()
 
 
 @pytest.fixture()
-def db(engine):
-    session = Session(engine, autoflush=False, expire_on_commit=False, future=True)
-    seed_demo_data(session)
-    yield session
-    session.close()
+def db(engine: Engine) -> Generator[Session, None, None]:
+    """Sesión aislada: todo se revierte al terminar la prueba."""
+    connection = engine.connect()
+    transaction = connection.begin()
+    session = Session(
+        bind=connection,
+        autoflush=False,
+        expire_on_commit=False,
+        future=True,
+        join_transaction_mode="create_savepoint",
+    )
+    try:
+        seed_demo_data(session)
+        yield session
+    finally:
+        session.close()
+        if transaction.is_active:
+            transaction.rollback()
+        connection.close()
 
 
 @pytest.fixture()
-def client(db):
-    def override_get_db():
+def client(db: Session) -> Generator[TestClient, None, None]:
+    def override_get_db() -> Generator[Session, None, None]:
         yield db
 
     app.dependency_overrides[get_db] = override_get_db

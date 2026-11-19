@@ -30,7 +30,7 @@ class AppUser(AuditMixin, Base):
 class Role(AuditMixin, Base):
     __tablename__ = "role"
     __table_args__ = (
-        UniqueConstraint("code", name="uq_code"),
+        UniqueConstraint("code", name="uq_role_code"),
         {"schema": "seg"},
     )
 
@@ -42,7 +42,7 @@ class Role(AuditMixin, Base):
 class Permission(AuditMixin, Base):
     __tablename__ = "permission"
     __table_args__ = (
-        UniqueConstraint("code", name="uq_code"),
+        UniqueConstraint("code", name="uq_permission_code"),
         {"schema": "seg"},
     )
 

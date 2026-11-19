@@ -105,6 +105,12 @@ PERMISSIONS_SLA: tuple[str, ...] = (
     "sla.policy.approve",
 )
 
+# Almacén virtual: proyección 2D, coordenadas y etiquetas QR opacas.
+PERMISSIONS_WMS_VIRTUAL: tuple[str, ...] = (
+    "warehouse.map.view",
+    "warehouse.map.manage",
+)
+
 # Aliases en español de los permisos operativos del Lote B. Se conserva
 # `almacenes.kardex -> inventory.kardex.view` para no romper el contrato actual.
 PERMISSIONS_WMS_LOTE_B_ALIASES: tuple[str, ...] = (
@@ -127,6 +133,7 @@ PERMISSIONS: tuple[str, ...] = (
     + PERMISSIONS_WMS_LOTE_B_ALIASES
     + PERMISSIONS_DOCUMENTAL
     + PERMISSIONS_SLA
+    + PERMISSIONS_WMS_VIRTUAL
 )
 
 # Alias español -> código canónico heredado. Permite que una política escrita
@@ -156,6 +163,8 @@ PERMISSION_ALIASES: dict[str, str] = {
     "catalogo.administrar": "catalog.manage",
     "ubicaciones.consultar": "warehouse.location.view",
     "ubicaciones.administrar": "warehouse.location.manage",
+    "mapas.almacen.consultar": "warehouse.map.view",
+    "mapas.almacen.administrar": "warehouse.map.manage",
     "almacenes.entradas": "wms.receipt.create",
     "almacenes.salidas": "wms.issue.create",
     "almacenes.devoluciones": "wms.return.create",
@@ -253,8 +262,8 @@ _LECTURA = (
     "sla.view",
 )
 
-_WMS_READ = ("catalog.view", "warehouse.location.view")
-_WMS_MANAGE = ("catalog.manage", "warehouse.location.manage")
+_WMS_READ = ("catalog.view", "warehouse.location.view", "warehouse.map.view")
+_WMS_MANAGE = ("catalog.manage", "warehouse.location.manage", "warehouse.map.manage")
 
 # Lote B: creación y consulta para almacén; aprobación para el aprobador;
 # gerencia y auditoría solo lectura. ADMIN ya recibe `PERMISSIONS` completo.

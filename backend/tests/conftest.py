@@ -62,7 +62,7 @@ def reset_test_database(engine: Engine) -> None:
 
     from app.db.seed import seed_demo_data
 
-    schemas = ("seg", "org", "mdm", "doc", "req", "wfl", "inv", "pur", "mnt", "cost", "intg", "aud")
+    schemas = ("seg", "org", "mdm", "doc", "req", "wfl", "inv", "pur", "mnt", "cost", "intg", "aud", "wms")
     session = SessionClass(engine, expire_on_commit=False)
     try:
         database = session.execute(text("SELECT current_database()")).scalar_one()

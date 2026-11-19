@@ -72,8 +72,9 @@ def test_migraciones_y_tipos_de_datos(engine) -> None:
         "b7c8d9e0f1a3",
         "c1d2e3f4a5b6",
         "d2e3f4a5b6c7",
+        "e5f6a7b8c9d0",
     }
-    assert {"seg", "org", "mdm", "doc", "req", "wfl", "inv", "pur", "mnt", "cost", "intg", "aud"} <= schemas
+    assert {"seg", "org", "mdm", "doc", "req", "wfl", "inv", "pur", "mnt", "cost", "intg", "aud", "wms"} <= schemas
     assert domain_tables >= 37
     assert created_at_types == {"timestamp with time zone"}
     assert float_columns == 0

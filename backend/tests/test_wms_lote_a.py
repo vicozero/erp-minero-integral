@@ -76,7 +76,10 @@ def test_altas_de_ubicaciones_respetan_permisos(client, db) -> None:
     }
     created = client.post("/api/v1/wms/locations", json=base_payload, headers=admin)
     assert created.status_code == 201, created.text
-    assert created.json()["qr_token"].startswith("WMS:ALM_PRINCIPAL_DEMO:QA-A-99-01")
+    # UB-007: el token es opaco; no revela almacén, código ni credenciales.
+    token = created.json()["qr_token"]
+    assert token.startswith("WMS-") and "ALM_PRINCIPAL_DEMO" not in token and "QA-A-99-01" not in token
+    assert created.json()["hierarchy_path"].endswith("QA-A-99-01")
 
     second = {**base_payload, "code": "QA-A-99-02"}
     allowed = client.post("/api/v1/wms/locations", json=second, headers=almacen)

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import uuid
+from decimal import Decimal
 
-from fastapi import APIRouter, Depends, File, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Query, Response, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -11,12 +12,22 @@ from app.api.v1.deps import require_permission
 from app.db.session import get_db
 from app.modules.identity.models import AppUser
 from app.modules.identity.service import IdentityService
+from app.modules.inventory.wms_map_schemas import (
+    LocationCoordinatesOut,
+    LocationLookupOut,
+    LocationMapMetadataIn,
+    LocationMapOut,
+    LocationMapVersionOut,
+    QrTokenOut,
+)
+from app.modules.inventory.wms_map_service import WmsMapService
 from app.modules.inventory.wms_service import WmsCatalogService
 from app.modules.master_data.schemas import (
     FamilyIn,
     FamilyOut,
     ItemDetailOut,
     ItemSearchOut,
+    LocationCoordinatesIn,
     LocationDetailOut,
     LocationIn,
     LocationOut,
@@ -153,6 +164,56 @@ def create_location(
     return result
 
 
+@router.get("/locations/lookup", response_model=LocationLookupOut)
+def lookup_qr(
+    qr_token: str = Query(min_length=8, max_length=160),
+    db: Session = Depends(get_db),
+    actor: AppUser = Depends(require_permission("warehouse.location.view")),
+):
+    return WmsMapService.lookup_qr(db, qr_token, _allowed_warehouses(db, actor))
+
+
+@router.patch("/locations/{location_id}/coordinates", response_model=LocationCoordinatesOut)
+def update_coordinates(
+    location_id: uuid.UUID,
+    payload: LocationCoordinatesIn,
+    db: Session = Depends(get_db),
+    actor: AppUser = Depends(require_permission("warehouse.map.manage")),
+):
+    result = WmsMapService.update_coordinates(db, actor.id, location_id, _allowed_warehouses(db, actor), payload)
+    db.commit()
+    return result
+
+
+@router.get("/locations/{location_id}/qr", response_model=QrTokenOut)
+def location_qr(
+    location_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    actor: AppUser = Depends(require_permission("warehouse.location.view")),
+):
+    detail = WmsCatalogService.location_detail(db, location_id, _allowed_warehouses(db, actor))
+    return {
+        "location_id": location_id,
+        "qr_token": detail["qr_token"],
+        "svg_url": f"/api/v1/wms/locations/{location_id}/qr.svg",
+        "lookup_url": f"/api/v1/wms/locations/lookup?qr_token={detail['qr_token']}",
+    }
+
+
+@router.get("/locations/{location_id}/qr.svg")
+def location_qr_svg(
+    location_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    actor: AppUser = Depends(require_permission("warehouse.location.view")),
+):
+    detail = WmsCatalogService.location_detail(db, location_id, _allowed_warehouses(db, actor))
+    return Response(
+        content=WmsMapService.qr_svg(detail["qr_token"]),
+        media_type="image/svg+xml",
+        headers={"Cache-Control": "no-store"},
+    )
+
+
 @router.get("/locations/{location_id}", response_model=LocationDetailOut)
 def location_detail(
     location_id: uuid.UUID,
@@ -160,3 +221,75 @@ def location_detail(
     actor: AppUser = Depends(require_permission("warehouse.location.view")),
 ):
     return WmsCatalogService.location_detail(db, location_id, _allowed_warehouses(db, actor))
+
+
+# --- Almacén virtual: mapa 2D versionado ----------------------------------
+
+
+@router.get("/maps/{warehouse_id}", response_model=LocationMapOut)
+def active_map(
+    warehouse_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    actor: AppUser = Depends(require_permission("warehouse.map.view")),
+):
+    return WmsMapService.map_detail(db, warehouse_id, _allowed_warehouses(db, actor))
+
+
+@router.get("/maps/{warehouse_id}/versions", response_model=list[LocationMapVersionOut])
+def map_versions(
+    warehouse_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    actor: AppUser = Depends(require_permission("warehouse.map.view")),
+):
+    return WmsMapService.versions(db, warehouse_id, _allowed_warehouses(db, actor))
+
+
+@router.patch("/maps/{warehouse_id}", response_model=LocationMapVersionOut)
+def update_map(
+    warehouse_id: uuid.UUID,
+    payload: LocationMapMetadataIn,
+    db: Session = Depends(get_db),
+    actor: AppUser = Depends(require_permission("warehouse.map.manage")),
+):
+    result = WmsMapService.create_version(db, actor.id, warehouse_id, _allowed_warehouses(db, actor), payload)
+    db.commit()
+    return result
+
+
+@router.post("/maps/{warehouse_id}/background", response_model=LocationMapVersionOut, status_code=201)
+def upload_map_background(
+    warehouse_id: uuid.UUID,
+    file: UploadFile = File(...),
+    label: str = Form(default="Referencial · no es plano exacto"),
+    width: Decimal = Form(default=Decimal("1000")),
+    height: Decimal = Form(default=Decimal("600")),
+    notes: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+    actor: AppUser = Depends(require_permission("warehouse.map.manage")),
+):
+    metadata = LocationMapMetadataIn(label=label, width=width, height=height, notes=notes)
+    result = WmsMapService.upload_background(
+        db,
+        actor.id,
+        warehouse_id,
+        _allowed_warehouses(db, actor),
+        metadata,
+        file_name=file.filename or "fondo",
+        content_type=file.content_type or "application/octet-stream",
+        content=file.file.read(),
+    )
+    db.commit()
+    return result
+
+
+@router.get("/maps/{warehouse_id}/background")
+def map_background(
+    warehouse_id: uuid.UUID,
+    version: int | None = Query(default=None, ge=1),
+    db: Session = Depends(get_db),
+    actor: AppUser = Depends(require_permission("warehouse.map.view")),
+):
+    path, media_type = WmsMapService.background_path(
+        db, warehouse_id, version, _allowed_warehouses(db, actor)
+    )
+    return FileResponse(path, media_type=media_type)

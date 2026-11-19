@@ -20,9 +20,9 @@ from sqlalchemy.exc import IntegrityError
 
 NULL_UUID = "00000000-0000-0000-0000-000000000000"
 REVISION_B1 = "b7c8d9e0f1a3"
-# Revisiones posteriores legítimas: el módulo documental es aditivo y no
-# invalida las garantías del Lote B.1 que esta prueba verifica.
-REVISIONES_POSTERIORES = {"c1d2e3f4a5b6", "d2e3f4a5b6c7"}
+# Revisiones posteriores legítimas: el módulo documental, el semáforo SLA y el
+# almacén virtual son aditivos y no invalidan las garantías del Lote B.1.
+REVISIONES_POSTERIORES = {"c1d2e3f4a5b6", "d2e3f4a5b6c7", "e5f6a7b8c9d0"}
 
 
 def _fetch_original(conn: object) -> dict[str, object]:
@@ -188,9 +188,21 @@ def test_migracion_aplicada_y_objetos_creados(engine: Engine) -> None:
     with engine.connect() as conn:
         revision = conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
         assert revision == REVISION_B1 or revision in REVISIONES_POSTERIORES
-        assert not conn.execute(
+        # El esquema `wms` quedó aprobado para el almacén virtual (Lote 3),
+        # que sólo crea `wms.location_map`. D-06 sigue sin aprobarse: no deben
+        # existir las tablas de órdenes de movimiento.
+        assert conn.execute(
             text("SELECT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname = 'wms')")
-        ).scalar_one(), "D-06 no está aprobada: no debe existir el esquema wms"
+        ).scalar_one(), "El esquema wms del almacén virtual debe existir"
+        assert conn.execute(
+            text("SELECT EXISTS(SELECT 1 FROM pg_tables WHERE schemaname = 'wms' AND tablename = 'location_map')")
+        ).scalar_one(), "Debe existir la tabla versionada del plano 2D"
+        assert not conn.execute(
+            text(
+                "SELECT EXISTS(SELECT 1 FROM pg_tables "
+                "WHERE schemaname = 'wms' AND tablename IN ('movement_order', 'movement_order_line'))"
+            )
+        ).scalar_one(), "D-06 no está aprobada: no deben existir órdenes de movimiento"
 
         relations = {
             (row[0], row[1]): row[2]

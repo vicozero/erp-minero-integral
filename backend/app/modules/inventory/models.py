@@ -4,7 +4,19 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import CheckConstraint, ForeignKey, Numeric, String, UniqueConstraint, func
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    ForeignKey,
+    Index,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import AuditMixin, Base
@@ -120,3 +132,45 @@ class StockMovement(Base):
     location_ref_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("mdm.storage_location.id", ondelete="RESTRICT"), nullable=True
     )
+
+
+class LocationMap(AuditMixin, Base):
+    """Versión inmutable del plano 2D de un almacén.
+
+    Guarda sólo metadatos del fondo. Los nodos se derivan en cada consulta de
+    ``mdm.storage_location`` (UB-010): esta tabla nunca es la fuente de verdad
+    de las posiciones. ``is_exact`` permanece falso por diseño: ninguna imagen
+    se presenta como plano exacto sin una decisión formal y una migración.
+    """
+
+    __tablename__ = "location_map"
+    __table_args__ = (
+        CheckConstraint("width > 0", name="ck_location_map_width"),
+        CheckConstraint("height > 0", name="ck_location_map_height"),
+        CheckConstraint("is_exact = false", name="ck_location_map_no_exacto"),
+        CheckConstraint("map_version >= 1", name="ck_location_map_version"),
+        UniqueConstraint("warehouse_id", "map_version", name="uq_location_map_version"),
+        Index(
+            "uq_location_map_active",
+            "warehouse_id",
+            unique=True,
+            postgresql_where=text("is_active"),
+        ),
+        {"schema": "wms"},
+    )
+
+    warehouse_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("org.warehouse.id", ondelete="RESTRICT"), nullable=False
+    )
+    map_version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    label: Mapped[str] = mapped_column(
+        String(120), default="Referencial · no es plano exacto", nullable=False
+    )
+    background_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    background_name: Mapped[str | None] = mapped_column(String(180), nullable=True)
+    background_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    is_exact: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    width: Mapped[Decimal] = mapped_column(Numeric(12, 4), default=Decimal("1000"), nullable=False)
+    height: Mapped[Decimal] = mapped_column(Numeric(12, 4), default=Decimal("600"), nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)

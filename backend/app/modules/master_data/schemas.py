@@ -29,11 +29,14 @@ class FamilyOut(ORMModel):
 class LocationIn(BaseModel):
     warehouse_id: uuid.UUID
     code: str = Field(min_length=3, max_length=80, pattern=r"^[A-Z0-9][A-Z0-9_.-]*$")
+    parent_id: uuid.UUID | None = None
     zone: str | None = Field(default=None, max_length=20)
     aisle: str | None = Field(default=None, max_length=20)
     rack: str | None = Field(default=None, max_length=20)
     level: str | None = Field(default=None, max_length=20)
     position: str | None = Field(default=None, max_length=20)
+    coord_x: Decimal | None = Field(default=None, ge=0)
+    coord_y: Decimal | None = Field(default=None, ge=0)
     location_type: str = Field(
         default="STANDARD",
         pattern=r"^(RECEIPT|STANDARD|QUARANTINE|DISPATCH|TRANSIT|SCRAP)$",
@@ -44,11 +47,17 @@ class LocationIn(BaseModel):
     is_receivable: bool = True
 
 
+class LocationCoordinatesIn(BaseModel):
+    coord_x: Decimal = Field(ge=0)
+    coord_y: Decimal = Field(ge=0)
+
+
 class LocationOut(ORMModel):
     id: uuid.UUID
     warehouse_id: uuid.UUID
     warehouse_code: str
     code: str
+    parent_id: uuid.UUID | None
     zone: str | None
     aisle: str | None
     rack: str | None
@@ -60,6 +69,9 @@ class LocationOut(ORMModel):
     status: str
     is_pickable: bool
     is_receivable: bool
+    coord_x: Decimal | None
+    coord_y: Decimal | None
+    hierarchy_path: str
     occupied_qty: Decimal
     item_count: int
 

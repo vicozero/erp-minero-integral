@@ -416,6 +416,7 @@ export interface WmsLocation {
   warehouse_id: string;
   warehouse_code: string;
   code: string;
+  parent_id: string | null;
   zone: string | null;
   aisle: string | null;
   rack: string | null;
@@ -427,8 +428,84 @@ export interface WmsLocation {
   status: string;
   is_pickable: boolean;
   is_receivable: boolean;
+  coord_x: string | null;
+  coord_y: string | null;
+  /** Jerarquía derivada en backend: unidad / almacén / zona / pasillo / ... */
+  hierarchy_path: string;
   occupied_qty: string;
   item_count: number;
+}
+
+export interface LocationMapNode {
+  id: string;
+  code: string;
+  parent_id: string | null;
+  hierarchy_path: string;
+  zone: string | null;
+  aisle: string | null;
+  rack: string | null;
+  level: string | null;
+  position: string | null;
+  location_type: string;
+  status: string;
+  coord_x: string | null;
+  coord_y: string | null;
+  occupied_qty: string;
+  item_count: number;
+}
+
+export interface LocationMapVersion {
+  id: string;
+  warehouse_id: string;
+  map_version: number;
+  label: string;
+  background_url: string | null;
+  background_name: string | null;
+  background_sha256: string | null;
+  /** Siempre false: ninguna imagen se presenta como plano exacto. */
+  is_exact: boolean;
+  width: string;
+  height: string;
+  is_active: boolean;
+  notes: string | null;
+}
+
+export interface LocationMap extends LocationMapVersion {
+  nodes: LocationMapNode[];
+}
+
+export interface LocationMapMetadataPayload {
+  label: string;
+  width: string;
+  height: string;
+  notes?: string | null;
+}
+
+export interface LocationCoordinatesOut {
+  id: string;
+  coord_x: string;
+  coord_y: string;
+  version: number;
+}
+
+export interface LocationQr {
+  location_id: string;
+  qr_token: string;
+  svg_url: string;
+  lookup_url: string;
+}
+
+export interface LocationLookup {
+  id: string;
+  warehouse_id: string;
+  warehouse_code: string;
+  code: string;
+  hierarchy_path: string;
+  location_type: string;
+  status: string;
+  coord_x: string | null;
+  coord_y: string | null;
+  qr_token: string;
 }
 
 export interface LocationRestriction {
@@ -447,11 +524,14 @@ export interface WmsLocationDetail extends WmsLocation {
 export interface LocationPayload {
   warehouse_id: string;
   code: string;
+  parent_id?: string | null;
   zone?: string | null;
   aisle?: string | null;
   rack?: string | null;
   level?: string | null;
   position?: string | null;
+  coord_x?: string | null;
+  coord_y?: string | null;
   location_type: 'RECEIPT' | 'STANDARD' | 'QUARANTINE' | 'DISPATCH' | 'TRANSIT' | 'SCRAP';
   capacity_qty: string;
   status?: 'ACTIVE' | 'BLOCKED' | 'INACTIVE';

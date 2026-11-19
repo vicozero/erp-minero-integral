@@ -4,6 +4,7 @@ import type { Catalogs, WmsLocation, WmsLocationDetail } from '../../api/types';
 import { useAuth } from '../../auth/AuthContext';
 import { can, PERM } from '../../auth/permissions';
 import { Icon } from '../../components/Icon';
+import { VirtualMap } from './VirtualMap';
 import {
   EmptyState,
   ErrorMessage,
@@ -33,9 +34,11 @@ function message(error: unknown): string {
 export function Locations() {
   const { user } = useAuth();
   const canManage = can(user, ...PERM.MANAGE_LOCATIONS);
+  const canManageMap = can(user, ...PERM.MANAGE_MAPS);
 
   const [catalogs, setCatalogs] = useState<Catalogs | null>(null);
   const [warehouseId, setWarehouseId] = useState('');
+  const [mapWarehouseId, setMapWarehouseId] = useState('');
   const [locationType, setLocationType] = useState('');
   const [status, setStatus] = useState('');
   const [query, setQuery] = useState('');
@@ -82,6 +85,7 @@ export function Locations() {
       setCatalogs(result);
       const first = result.warehouses[0]?.id ?? '';
       setForm((current) => ({ ...current, warehouse_id: current.warehouse_id || first }));
+      setMapWarehouseId((current) => current || first);
     }).catch(() => {
       // El filtro de almacén queda vacío; el backend aplica su alcance.
     });
@@ -199,8 +203,17 @@ export function Locations() {
         </form>
       </Panel>
 
+      <VirtualMap
+        warehouses={warehouses}
+        warehouseId={mapWarehouseId}
+        onWarehouseChange={setMapWarehouseId}
+        canManage={canManageMap}
+        selectedId={detail?.id ?? null}
+        onSelectLocation={(id) => void openDetail(id)}
+      />
+
       {canManage && (
-        <Panel title="Nueva ubicación" icon="location" subtitle="El token de etiqueta se genera automáticamente y se registra en auditoría">
+        <Panel title="Nueva ubicación" icon="location" subtitle="El token QR opaco se genera automáticamente y se registra en auditoría">
           <form onSubmit={handleCreate}>
             <div className="search-toolbar">
               <label>

@@ -26,7 +26,13 @@ import type {
   FamilyPayload,
   ItemFamily,
   ItemPhoto,
+  LocationCoordinatesOut,
+  LocationLookup,
+  LocationMap,
+  LocationMapMetadataPayload,
+  LocationMapVersion,
   LocationPayload,
+  LocationQr,
   WmsItem,
   WmsItemDetail,
   WmsLocation,
@@ -316,4 +322,37 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
+
+  // --- Almacén virtual · mapa 2D y QR ------------------------------------
+  wmsLocationMap: (warehouseId: string) =>
+    request<LocationMap>(`/api/v1/wms/maps/${warehouseId}`),
+  wmsLocationMapVersions: (warehouseId: string) =>
+    request<LocationMapVersion[]>(`/api/v1/wms/maps/${warehouseId}/versions`),
+  updateLocationMap: (warehouseId: string, payload: LocationMapMetadataPayload) =>
+    request<LocationMapVersion>(`/api/v1/wms/maps/${warehouseId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+  uploadLocationMapBackground: (warehouseId: string, payload: LocationMapMetadataPayload, file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    form.append('label', payload.label);
+    form.append('width', payload.width);
+    form.append('height', payload.height);
+    if (payload.notes) form.append('notes', payload.notes);
+    return request<LocationMapVersion>(`/api/v1/wms/maps/${warehouseId}/background`, {
+      method: 'POST',
+      body: form,
+    });
+  },
+  updateLocationCoordinates: (locationId: string, coordX: string, coordY: string) =>
+    request<LocationCoordinatesOut>(`/api/v1/wms/locations/${locationId}/coordinates`, {
+      method: 'PATCH',
+      body: JSON.stringify({ coord_x: coordX, coord_y: coordY }),
+    }),
+  locationQr: (locationId: string) =>
+    request<LocationQr>(`/api/v1/wms/locations/${locationId}/qr`),
+  locationQrSvgUrl: (locationId: string) => `/api/v1/wms/locations/${locationId}/qr.svg`,
+  lookupLocationQr: (qrToken: string) =>
+    request<LocationLookup>(`/api/v1/wms/locations/lookup?qr_token=${encodeURIComponent(qrToken)}`),
 };

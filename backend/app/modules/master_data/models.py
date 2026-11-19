@@ -159,6 +159,10 @@ class StorageLocation(AuditMixin, Base):
         ),
         CheckConstraint("status IN ('ACTIVE','BLOCKED','INACTIVE')", name="ck_storage_location_status"),
         CheckConstraint("capacity_qty >= 0", name="ck_storage_location_capacity"),
+        CheckConstraint(
+            "(coord_x IS NULL AND coord_y IS NULL) OR (coord_x IS NOT NULL AND coord_y IS NOT NULL)",
+            name="ck_storage_location_coordenadas",
+        ),
         UniqueConstraint("warehouse_id", "code", name="uq_storage_location_code"),
         UniqueConstraint("qr_token", name="uq_storage_location_qr"),
         {"schema": "mdm"},
@@ -180,6 +184,9 @@ class StorageLocation(AuditMixin, Base):
     status: Mapped[str] = mapped_column(String(20), default="ACTIVE", nullable=False)
     is_pickable: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     is_receivable: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    # Almacén virtual: proyección 2D. No son existencias ni una fuente oficial.
+    coord_x: Mapped[Decimal | None] = mapped_column(Numeric(12, 4), nullable=True)
+    coord_y: Mapped[Decimal | None] = mapped_column(Numeric(12, 4), nullable=True)
 
 
 class LocationRestriction(AuditMixin, Base):

@@ -8,6 +8,7 @@ No modifica saldos: las escrituras de inventario siguen gobernadas por
 from __future__ import annotations
 
 import hashlib
+import secrets
 import uuid
 from datetime import datetime, timezone
 from decimal import Decimal
@@ -20,7 +21,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.modules.audit.service import AuditService
-from app.modules.inventory.models import StockBalance, StockMovement
+from app.modules.inventory.models import LocationMap, StockBalance, StockMovement
 from app.modules.master_data.models import (
     Item,
     ItemCrossReference,
@@ -34,7 +35,7 @@ from app.modules.master_data.models import (
     Uom,
 )
 from app.modules.master_data.schemas import FamilyIn, LocationIn
-from app.modules.organization.models import Company, Warehouse
+from app.modules.organization.models import Company, MiningUnit, Warehouse
 from app.modules.purchasing.models import PurchaseOrder, PurchaseOrderLine
 from app.modules.requisitions.models import Requisition, RequisitionLine
 
@@ -74,6 +75,57 @@ def _default_company_id(db: Session, warehouse_ids: list[uuid.UUID] | None = Non
     if company_id is None:
         _fail("No existe una empresa configurada.", status.HTTP_404_NOT_FOUND)
     return company_id
+
+
+def build_location_path(
+    unit_code: str | None,
+    warehouse_code: str,
+    location: StorageLocation,
+) -> str:
+    """Jerarquía legible unidad → almacén → zona → pasillo → estante → nivel → posición.
+
+    Se deriva de los campos de la ubicación; nunca se almacena como verdad
+    independiente. El código de la ubicación se conserva como último segmento.
+    """
+    parts = [
+        unit_code,
+        warehouse_code,
+        location.zone,
+        location.aisle,
+        location.rack,
+        location.level,
+        location.position,
+        location.code,
+    ]
+    return " / ".join(str(part) for part in parts if part)
+
+
+def new_qr_token() -> str:
+    """Token opaco: no incluye almacén, código ni credenciales (UB-007)."""
+    return "WMS-" + secrets.token_urlsafe(18).replace("-", "").replace("_", "")
+
+
+def _assert_coords_in_map(
+    db: Session,
+    warehouse_id: uuid.UUID,
+    coord_x: Decimal | None,
+    coord_y: Decimal | None,
+) -> None:
+    if coord_x is None or coord_y is None:
+        return
+    active = db.execute(
+        select(LocationMap.width, LocationMap.height).where(
+            LocationMap.warehouse_id == warehouse_id,
+            LocationMap.is_active.is_(True),
+        )
+    ).one_or_none()
+    if active is None:
+        return
+    if coord_x > active[0] or coord_y > active[1]:
+        _fail(
+            f"La coordenada debe estar dentro del plano activo ({active[0]} × {active[1]}).",
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+        )
 
 
 class WmsCatalogService:
@@ -461,10 +513,12 @@ class WmsCatalogService:
             select(
                 StorageLocation,
                 Warehouse.code.label("warehouse_code"),
+                MiningUnit.code.label("unit_code"),
                 func.coalesce(occupancy.c.occupied_qty, 0).label("occupied_qty"),
                 func.coalesce(occupancy.c.item_count, 0).label("item_count"),
             )
             .join(Warehouse, Warehouse.id == StorageLocation.warehouse_id)
+            .outerjoin(MiningUnit, MiningUnit.id == Warehouse.mining_unit_id)
             .outerjoin(occupancy, occupancy.c.location_id == StorageLocation.id)
         )
         allowed = _warehouse_condition(warehouse_ids, StorageLocation.warehouse_id)
@@ -495,6 +549,7 @@ class WmsCatalogService:
                 "warehouse_id": location.warehouse_id,
                 "warehouse_code": warehouse_code,
                 "code": location.code,
+                "parent_id": location.parent_id,
                 "zone": location.zone,
                 "aisle": location.aisle,
                 "rack": location.rack,
@@ -506,10 +561,13 @@ class WmsCatalogService:
                 "status": location.status,
                 "is_pickable": location.is_pickable,
                 "is_receivable": location.is_receivable,
+                "coord_x": location.coord_x,
+                "coord_y": location.coord_y,
+                "hierarchy_path": build_location_path(unit_code, warehouse_code, location),
                 "occupied_qty": _dec(occupied_qty),
                 "item_count": int(item_count or 0),
             }
-            for location, warehouse_code, occupied_qty, item_count in db.execute(stmt)
+            for location, warehouse_code, unit_code, occupied_qty, item_count in db.execute(stmt)
         ]
 
     @staticmethod
@@ -592,16 +650,33 @@ class WmsCatalogService:
         ).scalar_one_or_none()
         if exists is not None:
             _fail("Ya existe una ubicación con ese código en el almacén.")
+        if payload.parent_id is not None:
+            parent = db.get(StorageLocation, payload.parent_id)
+            if parent is None or parent.warehouse_id != payload.warehouse_id:
+                _fail("La ubicación padre no existe o pertenece a otro almacén.", status.HTTP_404_NOT_FOUND)
+            seen: set[uuid.UUID] = set()
+            cursor: StorageLocation | None = parent
+            while cursor is not None:
+                if cursor.id in seen:
+                    _fail("La jerarquía de la ubicación padre es circular.")
+                seen.add(cursor.id)
+                cursor = db.get(StorageLocation, cursor.parent_id) if cursor.parent_id else None
+        if (payload.coord_x is None) != (payload.coord_y is None):
+            _fail("Debe indicar ambas coordenadas o ninguna.", status.HTTP_422_UNPROCESSABLE_ENTITY)
+        _assert_coords_in_map(db, payload.warehouse_id, payload.coord_x, payload.coord_y)
         location = StorageLocation(
             warehouse_id=payload.warehouse_id,
             code=code,
+            parent_id=payload.parent_id,
+            coord_x=payload.coord_x,
+            coord_y=payload.coord_y,
             zone=payload.zone.strip().upper() if payload.zone else None,
             aisle=payload.aisle.strip().upper() if payload.aisle else None,
             rack=payload.rack.strip().upper() if payload.rack else None,
             level=payload.level.strip().upper() if payload.level else None,
             position=payload.position.strip().upper() if payload.position else None,
             location_type=payload.location_type,
-            qr_token=f"WMS:{warehouse.code}:{code}",
+            qr_token=new_qr_token(),
             capacity_qty=payload.capacity_qty,
             status=payload.status,
             is_pickable=payload.is_pickable,

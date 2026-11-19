@@ -110,9 +110,9 @@ npm.cmd run build
 
 Resultados obtenidos en el entorno de desarrollo:
 
-- Backend: 109 pruebas aprobadas con PostgreSQL real (`erp_minero_test`); no se usa SQLite.
-- Backend: `ruff check app` y `mypy` sin errores en los módulos nuevos y sus pruebas.
-- Frontend: 27 pruebas aprobadas y compilación de producción correcta.
+- Backend: 114 pruebas aprobadas con PostgreSQL real (`erp_minero_test`); no se usa SQLite.
+- Backend: `ruff check app tests` y `mypy app` sin errores.
+- Frontend: 30 pruebas aprobadas y compilación de producción correcta.
 
 Las pruebas requieren `DATABASE_URL` y aplican migraciones Alembic antes de ejecutarse; el arnés solo permite la base `erp_minero_test` y restaura datos sintéticos.
 
@@ -127,20 +127,22 @@ Las pruebas requieren `DATABASE_URL` y aplican migraciones Alembic antes de ejec
 7. Todas las operaciones quedan en bitácora y con número de documento único.
 8. Los vales de salida y las requisiciones se exportan a PDF/XLSX con plantillas versionadas, folio único y reimpresión de la versión emitida; la descarga no mueve inventario.
 9. El semáforo SLA calcula en backend el color de cada requisición, conserva historial inmutable y se muestra en el portal como indicador separado del estado administrativo.
+10. El almacén virtual proyecta la jerarquía unidad → almacén → zona → pasillo → rack → nivel → posición sobre un plano 2D referencial, con panel lateral, QR opaco y coordenadas auditables que no modifican existencias.
 
 Detalle de formatos: `docs/VALES_ALMACEN_FORMATOS.md`, `docs/REQUISICIONES_FORMATOS.md`, `docs/RESULTADOS_MODULO_DOCUMENTAL.md` y evidencias en `docs/EVIDENCIA_FORMATOS/`.
 Detalle del semáforo: `docs/SLA_SEMAFORO.md` y `docs/RESULTADOS_SEMAFORO_SLA.md`.
+Detalle del almacén virtual: `docs/ALMACEN_VIRTUAL.md` y `docs/RESULTADOS_ALMACEN_VIRTUAL.md`.
 
 ## Estado de implementación
 
-Implementado y probado localmente: infraestructura FastAPI/SQLAlchemy/Alembic, autenticación RBAC con bitácora, requisiciones con folios y decisiones, inventario operativo con reservas/entregas/kardex, compras con recepciones parciales e idempotencia, formatos VA/REQ versionados, semáforo SLA con historial y filtros, e interfaz React con menú lateral, dashboard y pantallas por dominio.
+Implementado y probado localmente: infraestructura FastAPI/SQLAlchemy/Alembic, autenticación RBAC con bitácora, requisiciones con folios y decisiones, inventario operativo con reservas/entregas/kardex, compras con recepciones parciales e idempotencia, formatos VA/REQ versionados, semáforo SLA con historial y filtros, almacén virtual con plano 2D referencial/QR, e interfaz React con menú lateral, dashboard y pantallas por dominio.
 
 Pendiente para considerar la entrega completa en producción local:
 
 1. Instalar PostgreSQL 16+ en `127.0.0.1`, crear la base y completar `DATABASE_URL` en `.env`.
-2. Ejecutar `alembic upgrade head` y `python -m app.db.seed` contra esa base.
+2. Ejecutar `alembic upgrade head` y `python -m app.db.seed` contra esa base (la base de desarrollo sigue en `a1b2c3d4e5f6`; requiere autorización).
 3. Ejecutar la prueba de concurrencia transaccional (actualmente omitida) con dos sesiones reales.
-4. Implementar el almacén virtual (jerarquía, plano 2D, panel lateral, permisos y QR) y la regresión integral.
-5. Verificar el flujo completo desde el navegador contra PostgreSQL.
+4. Verificar el flujo completo desde el navegador contra PostgreSQL.
+5. Autorizar captura móvil, órdenes de movimiento (D-06) y cualquier plano como exacto, si se requieren.
 
 Ninguna función se considera terminada sin sus pruebas ejecutadas.

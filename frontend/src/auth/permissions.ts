@@ -17,6 +17,7 @@ export const PERM = {
   MANAGE_CATALOG: ['catalog.manage', 'catalogo.administrar'],
   VIEW_LOCATIONS: ['warehouse.location.view', 'ubicaciones.consultar'],
   MANAGE_LOCATIONS: ['warehouse.location.manage', 'ubicaciones.administrar'],
+  MANAGE_MAPS: ['warehouse.map.manage', 'mapas.almacen.administrar'],
 } as const;
 
 export function can(user: User | null, ...codes: readonly string[]): boolean {

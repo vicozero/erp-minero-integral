@@ -14,7 +14,7 @@ from app.modules.audit.service import AuditService
 from app.modules.costing.models import CostCenter
 from app.modules.documentation.models import DocumentNumbering, DocumentType
 from app.modules.identity.models import AppUser, Permission, Role, RolePermission, UserDepartment, UserRole
-from app.modules.inventory.models import NULL_UUID, StockBalance, StockMovement
+from app.modules.inventory.models import NULL_UUID, LocationMap, StockBalance, StockMovement
 from app.modules.maintenance.models import Equipment
 from app.modules.master_data.models import (
     Item,
@@ -128,13 +128,15 @@ def _seed_wms_demo(
         families[code] = family
 
     locations: dict[str, StorageLocation] = {}
-    for code, zone, aisle, rack, level, position, location_type in (
-        ("REC-A-01", "A", "01", None, None, None, "RECEIPT"),
-        ("A-01-R1-1-01", "A", "01", "R1", "1", "01", "STANDARD"),
-        ("A-01-R1-2-01", "A", "01", "R1", "2", "01", "STANDARD"),
-        ("A-02-R1-1-01", "A", "02", "R1", "1", "01", "STANDARD"),
-        ("CUAR-B-01", "B", "01", None, None, None, "QUARANTINE"),
-        ("DESP-C-01", "C", "01", None, None, None, "DISPATCH"),
+    # Coordenadas sintéticas dentro del plano 1000 × 600; son una proyección
+    # referencial, nunca un plano exacto ni una fuente de existencias.
+    for code, zone, aisle, rack, level, position, location_type, coord_x, coord_y in (
+        ("REC-A-01", "A", "01", None, None, None, "RECEIPT", "80", "300"),
+        ("A-01-R1-1-01", "A", "01", "R1", "1", "01", "STANDARD", "260", "180"),
+        ("A-01-R1-2-01", "A", "01", "R1", "2", "01", "STANDARD", "260", "260"),
+        ("A-02-R1-1-01", "A", "02", "R1", "1", "01", "STANDARD", "460", "180"),
+        ("CUAR-B-01", "B", "01", None, None, None, "QUARANTINE", "700", "300"),
+        ("DESP-C-01", "C", "01", None, None, None, "DISPATCH", "880", "300"),
     ):
         location = db.execute(
             select(StorageLocation).where(
@@ -154,11 +156,35 @@ def _seed_wms_demo(
                 qr_token=f"WMS:{warehouse.code}:{code}",
                 capacity_qty=Decimal("1000"),
                 status="ACTIVE",
+                coord_x=Decimal(coord_x),
+                coord_y=Decimal(coord_y),
                 created_by=admin.id,
             )
             db.add(location)
             db.flush()
+        elif location.coord_x is None:
+            location.coord_x = Decimal(coord_x)
+            location.coord_y = Decimal(coord_y)
         locations[code] = location
+
+    map_row = db.execute(
+        select(LocationMap).where(
+            LocationMap.warehouse_id == warehouse.id, LocationMap.is_active.is_(True)
+        )
+    ).scalar_one_or_none()
+    if map_row is None:
+        db.add(
+            LocationMap(
+                warehouse_id=warehouse.id,
+                map_version=1,
+                label="Referencial · no es plano exacto",
+                width=Decimal("1000"),
+                height=Decimal("600"),
+                is_active=True,
+                created_by=admin.id,
+            )
+        )
+        db.flush()
 
     item_meta: dict[str, dict[str, object]] = {
         "DEMO-TORNILLO": {

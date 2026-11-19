@@ -516,3 +516,78 @@ tbody tr:hover { background: var(--surface-alt); }
   .modal-card { max-height: 90vh; }
   .modal-card.modal-wide { max-width: none; }
 }
+
+/* --- Almacén virtual · plano 2D referencial ------------------------------ */
+.map-disclaimer {
+  display: flex; align-items: flex-start; gap: 6px;
+  background: var(--amber-100); color: var(--amber-600);
+  border: 1px solid var(--amber-500); border-radius: var(--radius-sm);
+  padding: 9px 11px; font-size: 12.5px; margin: 10px 0 14px;
+}
+.map-disclaimer svg { flex: none; margin-top: 1px; }
+
+.virtual-map-layout {
+  display: grid; grid-template-columns: minmax(0, 1fr) 258px;
+  gap: 14px; align-items: start; margin: 12px 0;
+}
+.warehouse-map {
+  position: relative; width: 100%; max-height: 520px;
+  background: var(--surface-sunken); border: 1px solid var(--line-strong);
+  border-radius: var(--radius); overflow: hidden;
+}
+.warehouse-map-background {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: fill; opacity: 0.65; pointer-events: none;
+}
+.warehouse-map-grid {
+  position: absolute; inset: 0; pointer-events: none;
+  background-image:
+    linear-gradient(to right, rgba(20, 122, 140, 0.12) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(20, 122, 140, 0.12) 1px, transparent 1px);
+  background-size: 10% 10%;
+}
+.map-node {
+  position: absolute; transform: translate(-50%, -50%);
+  display: grid; gap: 1px; min-width: 92px; padding: 5px 7px;
+  background: var(--surface); border: 1px solid var(--petrol-500);
+  border-radius: var(--radius-sm); box-shadow: var(--shadow-sm);
+  font-size: 11px; text-align: center; cursor: pointer; z-index: 1;
+}
+.map-node span { font-weight: 600; color: var(--petrol-700); }
+.map-node small { color: var(--text-muted); font-size: 10px; }
+.map-node:hover { border-color: var(--petrol-700); box-shadow: var(--shadow-md); }
+.map-node-selected { background: var(--petrol-100); border: 2px solid var(--petrol-700); }
+.map-node-receipt { border-left: 4px solid var(--blue-700); }
+.map-node-quarantine { border-left: 4px solid var(--amber-600); }
+.map-node-dispatch { border-left: 4px solid var(--green-600); }
+.map-node-scrap { border-left: 4px solid var(--red-600); }
+
+.map-sidebar {
+  background: var(--surface-alt); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 14px;
+}
+.map-sidebar h3 { margin: 0 0 6px; font-size: 15px; }
+.map-sidebar p { font-size: 12.5px; margin: 6px 0; }
+.map-breadcrumb { word-break: break-word; line-height: 1.45; }
+.map-coordinate-form { display: grid; gap: 8px; margin-top: 12px; }
+.map-coordinate-form label { display: grid; gap: 4px; font-size: 11.5px; color: var(--text-muted); }
+.map-coordinate-form .button { margin-top: 2px; }
+.map-qr {
+  margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line);
+  display: grid; gap: 5px; font-size: 12px;
+}
+.map-qr code { word-break: break-all; background: var(--surface-sunken); padding: 6px 8px; border-radius: var(--radius-sm); }
+.map-qr a { color: var(--petrol-600); font-size: 12px; }
+
+.map-admin { margin-top: 16px; padding: 14px; border: 1px dashed var(--line-strong); border-radius: var(--radius); }
+.map-admin .search-toolbar label { display: grid; gap: 4px; font-size: 11.5px; color: var(--text-muted); }
+.map-background-upload { display: grid; gap: 5px; margin-top: 10px; font-size: 11.5px; color: var(--text-muted); }
+.map-versions { margin-top: 12px; font-size: 12.5px; }
+.map-versions summary { cursor: pointer; color: var(--petrol-600); }
+.map-versions ul { margin: 8px 0 0; padding-left: 18px; color: var(--text-soft); }
+.map-versions li { margin: 3px 0; }
+
+@media (max-width: 1100px) {
+  .virtual-map-layout { grid-template-columns: 1fr; }
+  .warehouse-map { max-height: 420px; }
+}

@@ -69,6 +69,7 @@ jobs:
           psql -h 127.0.0.1 -U postgres -d erp_minero_test -v ON_ERROR_STOP=1 \
             -c "CREATE ROLE erp_minero_app LOGIN PASSWORD 'CI_SOLO_PRUEBAS';" \
             -c "GRANT ALL PRIVILEGES ON DATABASE erp_minero_test TO erp_minero_app;" \
+            -c "GRANT USAGE, CREATE ON SCHEMA public TO erp_minero_app;" \
             -c "ALTER DATABASE erp_minero_test SET timezone TO 'America/Mexico_City';"
 
       - name: Ruff

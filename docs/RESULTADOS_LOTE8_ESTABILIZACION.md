@@ -216,5 +216,6 @@ A solicitud del usuario se evaluó el despliegue en GitHub Pages y se eligió **
 - Con plan Free, Pages exige repositorio público y el sitio queda accesible en Internet. Hacer público el repo requiere una autorización nueva (Puerta G9 del plan).
 - Pages no puede servir el backend: no existirían `/api/v1`, `/health`, `/docs` ni la autenticación por cookie. El cliente mantiene rutas relativas, por lo que sin `VITE_API_URL` apuntaría a `vicozero.github.io/api/v1`. El resultado, si se publicara hoy, sería una demo estática sin datos.
 - Se agregaron 2 pruebas de la ruta base (`frontend/src/test/viteConfig.test.ts`). La verificación local quedó en **65/65 pruebas frontend** (17 archivos), con `tsc` y build en verde para ambas bases (`/` y `/erp-minero-integral/`).
+- El CI se volvió a ejecutar con este cambio (`44834165928`) y terminó en **success** en backend y frontend. El workflow de Pages no se ejecutó.
 
 No se expuso servicio, no se conectó CONTPAQi ni GMAO y no se rotó ninguna credencial.

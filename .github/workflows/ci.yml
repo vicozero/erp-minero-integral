@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend — lint, tipos y pruebas
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: erp_minero_app
+          POSTGRES_PASSWORD: CI_SOLO_PRUEBAS
+          POSTGRES_DB: erp_minero_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U erp_minero_app -d erp_minero_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      DATABASE_URL: postgresql+psycopg://erp_minero_app:CI_SOLO_PRUEBAS@127.0.0.1:5432/erp_minero_test
+      SECRET_KEY: CI_SOLO_PRUEBAS_NO_USAR_EN_PRODUCCION_0123456789abcdef
+      DEMO_PASSWORD: DemoSoloPruebas123
+      ENV: test
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Alembic necesita las ramas completas para calcular su thumbprint.
+          fetch-depth: 0
+
+      - name: Configurar Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Ruff
+        run: ruff check .
+
+      - name: Mypy
+        run: mypy app
+
+      - name: Pytest
+        run: pytest -q
+
+  frontend:
+    name: Frontend — tipos, pruebas y build
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: TypeScript
+        run: npx tsc --noEmit --pretty false
+
+      - name: Vitest
+        run: npm run test -- --run
+
+      - name: Build
+        run: npm run build

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import subprocess
 import uuid
 from pathlib import Path
@@ -197,14 +198,23 @@ def test_no_hay_credenciales_versionadas() -> None:
     )
     assert ignored.returncode == 0
 
-    env_values: dict[str, str] = {}
-    for raw_line in (REPO_ROOT / ".env").read_text(encoding="utf-8").splitlines():
-        line = raw_line.strip()
-        if line and not line.startswith("#") and "=" in line:
-            key, value = line.split("=", 1)
-            env_values[key.strip()] = value.strip().strip('"').strip("'")
+    env_file = REPO_ROOT / ".env"
+    if env_file.exists():
+        env_values: dict[str, str] = {}
+        for raw_line in env_file.read_text(encoding="utf-8").splitlines():
+            line = raw_line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                key, value = line.split("=", 1)
+                env_values[key.strip()] = value.strip().strip('"').strip("'")
+    else:
+        # En CI no se versiona ni se crea `.env`; los valores sintéticos llegan
+        # por variables de entorno. Se verifican igual para detectar fugas.
+        env_values = {
+            "SECRET_KEY": os.environ.get("SECRET_KEY", ""),
+            "DATABASE_URL": os.environ.get("DATABASE_URL", ""),
+        }
 
-    secrets = {env_values["SECRET_KEY"]}
+    secrets = {env_values["SECRET_KEY"]} if env_values["SECRET_KEY"] else set()
     db_password = urlsplit(env_values["DATABASE_URL"]).password
     if db_password:
         secrets.add(db_password)

@@ -257,12 +257,7 @@ def test_reimpresion_sin_archivo_original_no_regenera_bytes(
     )
     assert original.status_code == 200, original.text
 
-    directorio_auditoria = Path(
-        tempfile.mkdtemp(
-            prefix="auditoria-reimpresion-",
-            dir=r"C:\Users\Dell\AppData\Local\Temp\opencode",
-        )
-    )
+    directorio_auditoria = Path(tempfile.mkdtemp(prefix="auditoria-reimpresion-"))
     monkeypatch.setattr(settings, "DOCUMENT_STORAGE_DIR", directorio_auditoria)
     reprint = client.get(
         f"/api/v1/documents/vouchers/{voucher_id}/pdf",

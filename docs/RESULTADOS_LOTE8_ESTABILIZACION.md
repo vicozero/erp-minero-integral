@@ -203,3 +203,18 @@ Se capturaron seis rutas por resolución: `/login`, `/`, `/requisiciones`, `/alm
 La reauditoría encontró defectos altos reales; todos los hallazgos de código fueron corregidos o precisados, y el informe quedó ajustado a la evidencia verificable. La suite backend (175), la suite frontend (63), el tipo-check, el build, la migración `empty -> head` y la captura visual final pasaron con el código corregido. El workflow `.github/workflows/ci.yml` reproduce las verificaciones de código en GitHub Actions y terminó en verde.
 
 **No se declaró terminada la puesta en producción.** Quedan abiertos y reportados la integridad física de `E:`, la migración/backfill de `erp_minero_dev`, la rotación de credenciales, la capa de repositorios y las decisiones empresariales de aprobación. El código fuente sí se versionó y publicó en `vicozero/erp-minero-integral` (privado). No se publicó GitHub Pages ni se expuso servicio alguno.
+
+---
+
+## 11. GitHub Pages (preparado sin publicar)
+
+A solicitud del usuario se evaluó el despliegue en GitHub Pages y se eligió **preparar sin publicar**. La cuenta es plan **Free** y el repo es privado.
+
+- Se añadió `VITE_PUBLIC_BASE` a `frontend/vite.config.ts` (por defecto `/`; `/erp-minero-integral/` para un sitio de proyecto). Sin este ajuste, los assets se buscarían en la raíz del dominio y la página quedaría en blanco.
+- Se creó `.github/workflows/pages.yml`, con disparo únicamente manual (`workflow_dispatch`). No se ejecutó, no activa Pages y no se dispara con `push`.
+- No se modificó la configuración de Pages del repositorio (`has_pages: false`); no hay URL publicada.
+- Con plan Free, Pages exige repositorio público y el sitio queda accesible en Internet. Hacer público el repo requiere una autorización nueva (Puerta G9 del plan).
+- Pages no puede servir el backend: no existirían `/api/v1`, `/health`, `/docs` ni la autenticación por cookie. El cliente mantiene rutas relativas, por lo que sin `VITE_API_URL` apuntaría a `vicozero.github.io/api/v1`. El resultado, si se publicara hoy, sería una demo estática sin datos.
+- Se agregaron 2 pruebas de la ruta base (`frontend/src/test/viteConfig.test.ts`). La verificación local quedó en **65/65 pruebas frontend** (17 archivos), con `tsc` y build en verde para ambas bases (`/` y `/erp-minero-integral/`).
+
+No se expuso servicio, no se conectó CONTPAQi ni GMAO y no se rotó ninguna credencial.

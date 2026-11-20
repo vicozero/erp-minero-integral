@@ -23,6 +23,7 @@ Este documento es el plan que pediste que preparara. No modifica infraestructura
 | G6 | Rotar la credencial de desarrollo | No se imprimió ni rotó ninguna credencial |
 | G7 | Exponer el portal fuera de `127.0.0.1` | Está prohibido publicar puertos o abrir firewall sin autorización |
 | G8 | Declarar producción | No se hizo y sigue fuera del alcance aprobado |
+| G9 | Hacer público el repo o publicar un sitio en GitHub Pages | La cuenta es plan Free: Pages exige repo público y el sitio queda expuesto en Internet |
 
 ---
 
@@ -109,7 +110,7 @@ python C:\Users\Dell\AppData\Local\Temp\opencode\verify_head_ephemeral.py
 python C:\Users\Dell\AppData\Local\Temp\opencode\run_visual_ephemeral.py
 ```
 
-Criterios de aceptación: 175 pruebas backend, 63 frontend, migración `empty -> head` en `e4f5a6b7c8d9`, 18/18 capturas con sesión 200, 0 secretos reales en el diff.
+Criterios de aceptación: 175 pruebas backend, 65 frontend (63 del Lote 8 + 2 nuevas de ruta base), migración `empty -> head` en `e4f5a6b7c8d9`, 18/18 capturas con sesión 200, 0 secretos reales en el diff.
 
 El repositorio incluye `.github/workflows/ci.yml`, que repite en GitHub Actions el bloqueo de backend (Ruff, Mypy y Pytest sobre PostgreSQL 17 efímero) y de frontend (TypeScript, Vitest y build). Las versiones de dependencias usadas por CI se fijan en `.github/ci-constraints.txt`. El workflow no publica la aplicación ni expone servicios: usa sólo datos sintéticos y `127.0.0.1` dentro del runner.
 
@@ -170,4 +171,24 @@ No existe `downgrade` automático permitido. La reversión segura es:
 
 ---
 
-**Nota final:** el código fuente ya se publicó, pero el despliegue operativo de este plan no se ejecutó. Queda listo para ejecutarse por fases en cuanto se concedan las autorizaciones restantes de la Puerta 0.
+## 10. GitHub Pages — preparado sin publicar
+
+Decisión del usuario: **preparar sin publicar**. La cuenta es plan **Free** y el repositorio es privado.
+
+| Elemento | Estado real |
+|---|---|
+| `frontend/vite.config.ts` | Acepta `VITE_PUBLIC_BASE` (por defecto `/`). Para un sitio de proyecto se usa `/erp-minero-integral/`. |
+| `frontend/src/api/client.ts` | Sin cambios: usa `/api/v1` relativo cuando `VITE_API_URL` está vacío. En Pages apuntaría a `vicozero.github.io/api/v1` y fallaría. |
+| `.github/workflows/pages.yml` | Creado con disparo **manual** (`workflow_dispatch`). No se ejecutó, no activa Pages y no se dispara con `push`. |
+| Settings → Pages | Sin tocar. `has_pages: false`, sin URL publicada. |
+| Plan Free | Pages requiere repositorio público. Hacerlo público es la Puerta **G9** y expondría el código fuente. |
+
+Se agregaron 2 pruebas de la ruta base (`frontend/src/test/viteConfig.test.ts`). Verificación local: `tsc` limpio, **65/65 pruebas frontend** en 17 archivos y build correcto tanto con base `/` como con `/erp-minero-integral/`.
+
+**Limitación funcional:** GitHub Pages sirve archivos estáticos; no ejecuta FastAPI, PostgreSQL ni el proxy inverso. No existen `/api/v1`, `/health`, `/docs` ni autenticación. Aun con el artefacto bien construido, el resultado sería una **demo estática sin datos**, no el ERP operativo. Para un despliegue real hace falta un backend accesible por HTTPS con CORS y cookies `SameSite=None; Secure`, además de la base de datos; eso sigue supeditado a G7/G8.
+
+**Siguiente paso condicionado a G9:** configurar `VITE_API_URL` con el backend autorizado, verificar `base` en `dist/index.html`, habilitar Pages con source *GitHub Actions* y ejecutar el workflow manual. Nada de esto se hizo.
+
+---
+
+**Nota final:** el código fuente ya se publicó en un repositorio privado, pero el despliegue operativo de este plan no se ejecutó. GitHub Pages quedó preparado sin publicar. Queda listo para ejecutarse por fases en cuanto se concedan las autorizaciones restantes de la Puerta 0 y la nueva Puerta G9.

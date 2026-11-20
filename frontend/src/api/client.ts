@@ -35,6 +35,8 @@ import type {
   ItemPhoto,
   LocationCoordinatesOut,
   LocationLookup,
+  FloorPlan,
+  FloorPlanWorkspace,
   LocationMap,
   LocationMapMetadataPayload,
   LocationMapVersion,
@@ -42,6 +44,10 @@ import type {
   LocationQr,
   LocationInventory,
   MaterialSearchResult,
+  PlanImportPreview,
+  PlanPayload,
+  RackBlueprint,
+  RackBlueprintResult,
   WarehouseDashboard,
   WmsItem,
   WmsItemDetail,
@@ -430,4 +436,38 @@ export const api = {
   locationQrSvgUrl: (locationId: string) => `/api/v1/wms/locations/${locationId}/qr.svg`,
   lookupLocationQr: (qrToken: string) =>
     request<LocationLookup>(`/api/v1/wms/locations/lookup?qr_token=${encodeURIComponent(qrToken)}`),
+
+  // --- Lote 7 · diseñador profesional de planos 2D/3D --------------------
+  wmsPlanWorkspace: (warehouseId: string) =>
+    request<FloorPlanWorkspace>(
+      `/api/v1/wms/plans/workspace?warehouse_id=${encodeURIComponent(warehouseId)}`,
+    ),
+  wmsPlanEnsureDraft: (warehouseId: string) =>
+    request<FloorPlan>(`/api/v1/wms/plans/draft?warehouse_id=${encodeURIComponent(warehouseId)}`, {
+      method: 'POST',
+    }),
+  wmsPlanSave: (planId: string, warehouseId: string, payload: PlanPayload) =>
+    request<FloorPlan>(
+      `/api/v1/wms/plans/${planId}?warehouse_id=${encodeURIComponent(warehouseId)}`,
+      { method: 'PUT', body: JSON.stringify(payload) },
+    ),
+  wmsPlanPublish: (planId: string, warehouseId: string, revision: number, notes?: string) =>
+    request<FloorPlanWorkspace>(
+      `/api/v1/wms/plans/${planId}/publish?warehouse_id=${encodeURIComponent(warehouseId)}&revision=${revision}${notes ? `&notes=${encodeURIComponent(notes)}` : ''}`,
+      { method: 'POST' },
+    ),
+  wmsPlanCreateRack: (planId: string, warehouseId: string, payload: RackBlueprint) =>
+    request<RackBlueprintResult>(
+      `/api/v1/wms/plans/${planId}/racks?warehouse_id=${encodeURIComponent(warehouseId)}`,
+      { method: 'POST', body: JSON.stringify(payload) },
+    ),
+  wmsPlanImportPreview: (payload: PlanPayload) =>
+    request<PlanImportPreview>('/api/v1/wms/plans/import-preview', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  wmsPlanExport: (planId: string, warehouseId: string) =>
+    request<Record<string, unknown>>(
+      `/api/v1/wms/plans/${planId}/export?warehouse_id=${encodeURIComponent(warehouseId)}`,
+    ),
 };

@@ -111,6 +111,17 @@ PERMISSIONS_WMS_VIRTUAL: tuple[str, ...] = (
     "warehouse.map.manage",
 )
 
+# Lote 7: capacidades separadas del diseñador. Publicar no está incluido en
+# `_WMS_MANAGE`; sólo administración puede aprobar una versión operativa.
+PERMISSIONS_WMS_DESIGNER: tuple[str, ...] = (
+    "warehouse.plan.view",
+    "warehouse.plan.draft",
+    "warehouse.plan.publish",
+    "planos.almacen.consultar",
+    "planos.almacen.editar",
+    "planos.almacen.publicar",
+)
+
 # Lote 4: catálogo de permisos para funciones que aún no tienen pantalla
 # operativa. Se registran para que SUPERADMIN tenga cobertura completa sin
 # simular módulos no implementados.
@@ -146,6 +157,7 @@ PERMISSIONS: tuple[str, ...] = (
     + PERMISSIONS_DOCUMENTAL
     + PERMISSIONS_SLA
     + PERMISSIONS_WMS_VIRTUAL
+    + PERMISSIONS_WMS_DESIGNER
     + PERMISSIONS_LOTE4
 )
 
@@ -178,6 +190,9 @@ PERMISSION_ALIASES: dict[str, str] = {
     "ubicaciones.administrar": "warehouse.location.manage",
     "mapas.almacen.consultar": "warehouse.map.view",
     "mapas.almacen.administrar": "warehouse.map.manage",
+    "planos.almacen.consultar": "warehouse.plan.view",
+    "planos.almacen.editar": "warehouse.plan.draft",
+    "planos.almacen.publicar": "warehouse.plan.publish",
     "reportes.consultar": "report.view",
     "presupuestos.consultar": "budget.view",
     "presupuestos.administrar": "budget.manage",
@@ -287,8 +302,20 @@ _LECTURA = (
     "sla.view",
 )
 
-_WMS_READ = ("catalog.view", "warehouse.location.view", "warehouse.map.view")
-_WMS_MANAGE = ("catalog.manage", "warehouse.location.manage", "warehouse.map.manage")
+_WMS_READ = (
+    "catalog.view",
+    "warehouse.location.view",
+    "warehouse.map.view",
+    "warehouse.plan.view",
+    "planos.almacen.consultar",
+)
+_WMS_MANAGE = (
+    "catalog.manage",
+    "warehouse.location.manage",
+    "warehouse.map.manage",
+    "warehouse.plan.draft",
+    "planos.almacen.editar",
+)
 
 # Lote B: creación y consulta para almacén; aprobación para el aprobador;
 # gerencia y auditoría solo lectura. ADMIN ya recibe `PERMISSIONS` completo.

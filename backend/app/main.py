@@ -19,6 +19,7 @@ from app.api.v1.routers import (
     requisitions,
     sla,
     wms,
+    wms_designer,
 )
 from app.core.config import settings
 from app.core.context import request_id_var
@@ -114,6 +115,7 @@ for modular_router in (
     documentation.router,
     sla.router,
     wms.router,
+    wms_designer.router,
     audit.router,
 ):
     app.include_router(modular_router, prefix=settings.API_V1_PREFIX)

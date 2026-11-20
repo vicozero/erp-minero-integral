@@ -1,3 +1,16 @@
+export type {
+  DesignerTool,
+  ElementType,
+  FloorPlan,
+  FloorPlanWorkspace,
+  PlanElement,
+  PlanImportPreview,
+  PlanPayload,
+  RackBlueprint,
+  RackBlueprintResult,
+  SceneSnapshot,
+} from '../features/wms/designer/types';
+
 export interface User {
   id: string;
   username: string;

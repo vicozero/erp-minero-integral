@@ -19,7 +19,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db.base import AuditMixin, Base
+from app.db.base import JSON_DICT, AuditMixin, Base
 from app.shared.constants import MOVEMENT_DIRECTIONS, MOVEMENT_TYPES, RESERVATION_STATUSES
 
 NULL_UUID = uuid.UUID(int=0)
@@ -174,3 +174,64 @@ class LocationMap(AuditMixin, Base):
     height: Mapped[Decimal] = mapped_column(Numeric(12, 4), default=Decimal("600"), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class FloorPlan(AuditMixin, Base):
+    """Plano editable del almacén: un borrador por almacén y versiones publicadas.
+
+    ``elements`` es el único modelo de escena: la vista 2D y la 3D se proyectan
+    desde este array, nunca desde dos planos independientes. ``location_refs``
+    enumera las ubicaciones WMS vinculadas para validar unicidad. La geometría
+    es referencial por defecto; ``dimensions_verified`` sólo puede afirmar
+    medidas verificadas tras una validación documentada fuera del editor.
+    """
+
+    __tablename__ = "floor_plan"
+    __table_args__ = (
+        CheckConstraint("width > 0", name="ck_floor_plan_width"),
+        CheckConstraint("height > 0", name="ck_floor_plan_height"),
+        CheckConstraint("grid_size > 0", name="ck_floor_plan_grid_size"),
+        CheckConstraint("plan_version >= 1", name="ck_floor_plan_version"),
+        CheckConstraint("revision >= 1", name="ck_floor_plan_revision"),
+        CheckConstraint("status IN ('DRAFT','PUBLISHED','ARCHIVED')", name="ck_floor_plan_status"),
+        CheckConstraint("jsonb_typeof(elements) = 'array'", name="ck_floor_plan_elements"),
+        CheckConstraint("jsonb_typeof(location_refs) = 'array'", name="ck_floor_plan_refs"),
+        UniqueConstraint("warehouse_id", "plan_version", name="uq_floor_plan_version"),
+        Index(
+            "uq_floor_plan_active",
+            "warehouse_id",
+            unique=True,
+            postgresql_where=text("is_active"),
+        ),
+        Index(
+            "uq_floor_plan_draft",
+            "warehouse_id",
+            unique=True,
+            postgresql_where=text("status = 'DRAFT'"),
+        ),
+        {"schema": "wms"},
+    )
+
+    warehouse_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("org.warehouse.id", ondelete="RESTRICT"), nullable=False
+    )
+    plan_version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    status: Mapped[str] = mapped_column(String(16), default="DRAFT", nullable=False)
+    label: Mapped[str] = mapped_column(String(120), default="Referencial · no es plano exacto", nullable=False)
+    width: Mapped[Decimal] = mapped_column(Numeric(12, 4), default=Decimal("1000"), nullable=False)
+    height: Mapped[Decimal] = mapped_column(Numeric(12, 4), default=Decimal("600"), nullable=False)
+    grid_size: Mapped[Decimal] = mapped_column(Numeric(12, 4), default=Decimal("20"), nullable=False)
+    scale_label: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    dimensions_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    elements: Mapped[list[dict]] = mapped_column(JSON_DICT, default=list, nullable=False)
+    location_refs: Mapped[list[dict]] = mapped_column(JSON_DICT, default=list, nullable=False)
+    background_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    background_name: Mapped[str | None] = mapped_column(String(180), nullable=True)
+    background_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    revision: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    published_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    published_by: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("seg.app_user.id", ondelete="RESTRICT"), nullable=True
+    )

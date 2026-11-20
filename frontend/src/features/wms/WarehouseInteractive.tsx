@@ -22,6 +22,7 @@ import {
 import { InteractiveMap2D } from './InteractiveMap2D';
 import { SceneErrorBoundary } from './SceneErrorBoundary';
 import { VirtualMap } from './VirtualMap';
+import { Designer } from './designer/Designer';
 import { webglAvailable } from './webgl';
 import { DEFAULT_GEOMETRY, type GeometrySettings } from './warehouse3dConfig';
 
@@ -48,6 +49,9 @@ export function WarehouseInteractive() {
   const canManageMap = can(user, ...PERM.MANAGE_MAPS);
   const canViewMaps = can(user, ...PERM.VIEW_MAPS);
   const canViewStock = can(user, ...PERM.VIEW_STOCK_COST);
+  const canOpenDesigner = canViewMaps || can(user, ...PERM.VIEW_PLANS);
+  const canEditPlan = can(user, ...PERM.EDIT_PLANS);
+  const canPublishPlan = can(user, ...PERM.PUBLISH_PLANS);
 
   const [catalogs, setCatalogs] = useState<Catalogs | null>(null);
   const [families, setFamilies] = useState<ItemFamily[]>([]);
@@ -72,6 +76,7 @@ export function WarehouseInteractive() {
   const [resetToken, setResetToken] = useState(0);
   const [geometry, setGeometry] = useState<GeometrySettings>(DEFAULT_GEOMETRY);
   const [editorOpen, setEditorOpen] = useState(false);
+  const [designerOpen, setDesignerOpen] = useState(false);
   const [webgl] = useState(() => webglAvailable());
 
   const warehouses = useMemo(() => catalogs?.warehouses ?? [], [catalogs]);
@@ -198,9 +203,20 @@ export function WarehouseInteractive() {
         title="Almacén virtual 2D / 3D"
         subtitle="Ubicaciones y existencias reales del WMS · plano referencial versionado"
         actions={
-          <span className="badge badge-partially_approved" aria-label="Inventario operativo">
-            Inventario operativo
-          </span>
+          <>
+            <button
+              type="button"
+              className="button button-primary"
+              onClick={() => setDesignerOpen(true)}
+              disabled={!canOpenDesigner || !warehouseId}
+              data-testid="editar-plano"
+            >
+              Editar plano
+            </button>
+            <span className="badge badge-partially_approved" aria-label="Inventario operativo">
+              Inventario operativo
+            </span>
+          </>
         }
       />
 
@@ -529,6 +545,23 @@ export function WarehouseInteractive() {
           )}
         </aside>
       </div>
+
+      {designerOpen && (
+        <Designer
+          warehouseId={warehouseId}
+          warehouseLabel={
+            warehouses.find((warehouse) => warehouse.id === warehouseId)?.name
+            ?? warehouses.find((warehouse) => warehouse.id === warehouseId)?.code
+            ?? warehouseId
+          }
+          canEdit={canEditPlan}
+          canPublish={canPublishPlan}
+          canManageLocations={canManageMap}
+          canViewCost={canViewStock}
+          onClose={() => setDesignerOpen(false)}
+          onSaved={() => void loadWorkspace(warehouseId)}
+        />
+      )}
     </div>
   );
 }

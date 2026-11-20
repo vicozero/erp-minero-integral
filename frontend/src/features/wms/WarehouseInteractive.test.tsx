@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from '../../api/client';
 import type {
   Catalogs,
+  FloorPlan,
+  FloorPlanWorkspace,
   ItemFamily,
   LocationInventory,
   LocationMap,
@@ -289,5 +291,46 @@ describe('Almacén virtual interactivo', () => {
     ));
     await waitFor(() => expect(screen.queryByRole('button', { name: /Ubicación A-01-R1-1-01/ })).not.toBeInTheDocument());
     expect(screen.getByRole('button', { name: /Ubicación A-01-R1-2-01/ })).toBeInTheDocument();
+  });
+
+  it('abre el diseñador de planos desde el botón Editar plano', async () => {
+    setup([...VIEW_MAPS, ...VIEW_STOCK, 'warehouse.plan.view', 'warehouse.plan.draft']);
+    const draft: FloorPlan = {
+      id: 'plan-1',
+      warehouse_id: 'wh-1',
+      plan_version: 1,
+      status: 'DRAFT',
+      label: 'Referencial · no es plano exacto',
+      width: 1000,
+      height: 600,
+      grid_size: 20,
+      scale_label: 'Referencial',
+      dimensions_verified: false,
+      elements: [],
+      location_refs: [],
+      revision: 1,
+      is_active: false,
+      notes: null,
+      can_edit: true,
+      can_publish: false,
+      created_at: '2026-11-19T10:00:00Z',
+      updated_at: null,
+      published_at: null,
+    };
+    const planWorkspace: FloorPlanWorkspace = {
+      warehouse_id: 'wh-1', active: null, draft, versions: [],
+    };
+    vi.spyOn(api, 'wmsPlanWorkspace').mockResolvedValue(planWorkspace);
+    vi.spyOn(api, 'wmsPlanEnsureDraft').mockResolvedValue(draft);
+    vi.spyOn(api, 'wmsLocations').mockResolvedValue([]);
+
+    await screen.findByTestId('mapa-2d');
+    const button = screen.getByRole('button', { name: 'Editar plano' });
+    expect(button).toBeEnabled();
+    fireEvent.click(button);
+
+    expect(await screen.findByRole('dialog', { name: 'Diseñador profesional de planos' })).toBeInTheDocument();
+    expect(screen.getByText(/Diseñador de plano · Almacén principal/)).toBeInTheDocument();
+    expect(screen.getByText(/Borrador v1 · revisión 1/)).toBeInTheDocument();
   });
 });

@@ -11,8 +11,14 @@ TEST_DATABASE_NAME = "erp_minero_test"
 
 
 def _load_env_file() -> dict[str, str]:
-    """Lee el .env local sin imprimir ni versionar credenciales."""
+    """Lee el .env local sin imprimir ni versionar credenciales.
+
+    En CI no existe `.env`: las variables se proveen explícitamente desde el
+    workflow. La ausencia del archivo no debe impedir ejecutar las pruebas.
+    """
     values: dict[str, str] = {}
+    if not ENV_FILE.exists():
+        return values
     for raw_line in ENV_FILE.read_text(encoding="utf-8").splitlines():
         line = raw_line.strip()
         if not line or line.startswith("#") or "=" not in line:

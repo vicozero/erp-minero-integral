@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import secrets
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
@@ -77,11 +78,36 @@ def tokens_equal(left: str, right: str) -> bool:
     return hmac.compare_digest(left, right)
 
 
-def create_access_token(user_id: UUID) -> str:
-    """Compatibilidad con clientes Bearer existentes y pruebas de integración."""
+@dataclass(frozen=True)
+class AccessTokenClaims:
+    """Identidad, sesión y versión de credencial que autoriza el token."""
+
+    user_id: UUID
+    session_id: UUID
+    credential_version: int
+
+
+def credential_version(password_changed_at: datetime | None) -> int:
+    """Versión monotónica derivada del último cambio de contraseña."""
+    if password_changed_at is None:
+        return 0
+    value = password_changed_at
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return int(value.timestamp())
+
+
+def create_access_token(user_id: UUID, session_id: UUID, credential: int) -> str:
+    """Bearer ligado a una sesión real; nunca se emite sin `session_id`.
+
+    El token no es una segunda fuente de autoridad: la sesión en `seg.user_session`
+    y la versión de credencial del usuario deciden si sigue siendo válido.
+    """
     now = datetime.now(timezone.utc)
     payload = {
         "sub": str(user_id),
+        "sid": str(session_id),
+        "cred": credential,
         "iat": int(now.timestamp()),
         "exp": int((now + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)).timestamp()),
         "typ": "access",
@@ -89,7 +115,7 @@ def create_access_token(user_id: UUID) -> str:
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=_ALGORITHM)
 
 
-def decode_access_token(token: str) -> UUID:
+def decode_access_token(token: str) -> AccessTokenClaims:
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[_ALGORITHM])
     except jwt.PyJWTError as exc:
@@ -100,6 +126,10 @@ def decode_access_token(token: str) -> UUID:
     if payload.get("typ") != "access" or not payload.get("sub"):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido.")
     try:
-        return UUID(str(payload["sub"]))
-    except ValueError as exc:
+        return AccessTokenClaims(
+            user_id=UUID(str(payload["sub"])),
+            session_id=UUID(str(payload["sid"])),
+            credential_version=int(payload["cred"]),
+        )
+    except (ValueError, TypeError, KeyError) as exc:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido.") from exc

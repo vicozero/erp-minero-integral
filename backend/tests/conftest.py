@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-import uuid
 from collections.abc import Generator
 from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
@@ -24,8 +23,11 @@ def _load_env_file() -> dict[str, str]:
 
 
 _env_values = _load_env_file()
+# El entorno puede seleccionar un clúster PostgreSQL efímero para validar sin
+# depender del servicio local (por ejemplo, durante una ventana de mantenimiento).
+# Los valores del .env se usan sólo si no fueron provistos explícitamente.
 for _key in ("DATABASE_URL", "SECRET_KEY", "DEMO_PASSWORD"):
-    if _key in _env_values:
+    if _key in _env_values and _key not in os.environ:
         os.environ[_key] = _env_values[_key]
 
 # Las pruebas jamás deben apuntar a la base de desarrollo. La URL se deriva
@@ -45,7 +47,6 @@ from sqlalchemy import create_engine, text  # noqa: E402
 from sqlalchemy.engine import Engine  # noqa: E402
 from sqlalchemy.orm import Session  # noqa: E402
 
-from app.core.security import create_access_token  # noqa: E402
 from app.db.seed import seed_demo_data  # noqa: E402
 from app.db.session import get_db  # noqa: E402
 from app.main import app  # noqa: E402
@@ -162,15 +163,16 @@ def auth_header(client: TestClient, username: str = "demo.admin") -> dict[str, s
     return {"Authorization": f"Bearer {response.json()['access_token']}"}
 
 
-def direct_token(user_id: uuid.UUID) -> dict[str, str]:
-    return {"Authorization": f"Bearer {create_access_token(user_id)}"}
-
-
-def login_with_cookie(client: TestClient, username: str = "demo.admin") -> dict[str, str]:
+def login_with_cookie(
+    client: TestClient,
+    username: str = "demo.admin",
+    headers: dict[str, str] | None = None,
+) -> dict[str, str]:
     """Inicia sesión usando cookies reales y devuelve la cabecera CSRF."""
     response = client.post(
         "/api/v1/auth/login",
         json={"username": username, "password": os.environ["DEMO_PASSWORD"]},
+        headers=headers,
     )
     assert response.status_code == 200, response.text
     return {"X-CSRF-Token": response.json()["csrf_token"]}

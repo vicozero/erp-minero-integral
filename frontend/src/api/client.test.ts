@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { api, setCsrfToken } from './client';
+import { api, setCsrfToken, UNAUTHORIZED_EVENT } from './client';
 
 function mockFetch(status = 204) {
   const fetchMock = vi.fn().mockResolvedValue({ ok: true, status });
@@ -46,5 +46,25 @@ describe('Cliente API con cookies de sesión', () => {
 
   it('no guarda el token de sesión en almacenamiento local', () => {
     expect(window.localStorage.length).toBe(0);
+  });
+
+  it('notifica la caducidad de sesión en 401 excepto en login y cambio de contraseña', async () => {
+    const listener = vi.fn();
+    window.addEventListener(UNAUTHORIZED_EVENT, listener);
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: async () => ({ detail: 'Sesión expirada' }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(api.me()).rejects.toMatchObject({ status: 401 });
+    expect(listener).toHaveBeenCalledTimes(1);
+
+    await expect(api.login('demo', 'incorrecta')).rejects.toMatchObject({ status: 401 });
+    await expect(api.changePassword('incorrecta', 'nueva')).rejects.toMatchObject({ status: 401 });
+    expect(listener).toHaveBeenCalledTimes(1);
+
+    window.removeEventListener(UNAUTHORIZED_EVENT, listener);
   });
 });

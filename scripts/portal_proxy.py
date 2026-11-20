@@ -3,6 +3,7 @@ from __future__ import annotations
 import http.client
 import mimetypes
 import os
+import threading
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -69,6 +70,7 @@ class PortalServer(ThreadingHTTPServer):
 
     def __init__(self, address: tuple[str, int], handler: type[BaseHTTPRequestHandler], config: PortalConfig):
         self.config = config
+        self.log_lock = threading.Lock()
         super().__init__(address, handler)
 
 
@@ -91,7 +93,8 @@ class PortalHandler(BaseHTTPRequestHandler):
         client = self.client_address[0] if self.client_address else "-"
         line = f"{stamp} {level} {client} {self.command} {self.path} {message}\n"
         with self.portal_config.access_log.open("a", encoding="utf-8") as handle:
-            handle.write(line)
+            with self.server.log_lock:  # type: ignore[attr-defined]
+                handle.write(line)
 
     def _security_headers(self) -> dict[str, str]:
         headers = {
@@ -194,6 +197,13 @@ class PortalHandler(BaseHTTPRequestHandler):
 
     def _read_request_body(self) -> bytes | None:
         raw_length = self.headers.get("Content-Length")
+        transfer_encoding = self.headers.get("Transfer-Encoding")
+        if raw_length is not None and transfer_encoding is not None:
+            # HTTP/1.1 describe el cuerpo de dos formas distintas. Reenviar
+            # sólo Content-Length (Transfer-Encoding es hop-by-hop) deja bytes
+            # sin consumir en el socket y permite desincronizar peticiones.
+            self._send_json(400, {"detail": "Cabeceras de longitud incompatibles."})
+            return None
         if raw_length is not None:
             try:
                 length = int(raw_length)
@@ -204,10 +214,32 @@ class PortalHandler(BaseHTTPRequestHandler):
                 self._send_json(413, {"detail": "La petición excede el tamaño permitido."})
                 return None
             return self.rfile.read(length) if length else b""
-        if self.headers.get("Transfer-Encoding"):
+        if transfer_encoding:
             self._send_json(411, {"detail": "Se requiere Content-Length."})
             return None
         return b""
+
+    def _read_backend_body(self, response: http.client.HTTPResponse) -> bytes | None:
+        """Lee el cuerpo del backend con el mismo tope que la petición."""
+        limit = self.portal_config.max_body_bytes
+        declared = response.getheader("Content-Length")
+        if declared:
+            try:
+                if int(declared) > limit:
+                    return None
+            except ValueError:
+                return None
+        chunks: list[bytes] = []
+        total = 0
+        while True:
+            chunk = response.read(min(65536, limit - total + 1))
+            if not chunk:
+                break
+            total += len(chunk)
+            if total > limit:
+                return None
+            chunks.append(chunk)
+        return b"".join(chunks)
 
     def _proxy_to_backend(self) -> None:
         body = self._read_request_body()
@@ -230,13 +262,23 @@ class PortalHandler(BaseHTTPRequestHandler):
         try:
             connection.request(self.command, self.path, body=body, headers=headers)
             response = connection.getresponse()
-            payload = response.read()
+            payload = self._read_backend_body(response)
+            if payload is None:
+                self.log_error("Respuesta del backend fuera del límite configurado")
+                if not getattr(self, "_response_started", False):
+                    self._send_json(502, {"detail": "Respuesta del backend no válida."})
+                return
             self.send_response(response.status)
             for name, value in response.getheaders():
                 lowered = name.lower()
                 if lowered in HOP_BY_HOP_HEADERS or lowered in {"content-length", "connection"}:
                     continue
                 self.send_header(name, value)
+            # HTTP/1.1 necesita un delimitador de cuerpo. El backend puede
+            # responder en chunked; al leerlo completo conocemos su longitud
+            # real y debemos declararla, o el navegador espera infinitamente.
+            if response.status not in (204, 304) and self.command != "HEAD":
+                self.send_header("Content-Length", str(len(payload)))
             self.send_header("Cache-Control", "no-store")
             self.end_headers()
             if self.command != "HEAD" and response.status not in (204, 304) and payload:

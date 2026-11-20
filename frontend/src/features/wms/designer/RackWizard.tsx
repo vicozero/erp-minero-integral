@@ -27,11 +27,16 @@ const INITIAL: RackBlueprint = {
   location_type: 'STANDARD',
   x: 0,
   y: 0,
-  create_locations: true,
+  create_locations: false,
 };
 
 export function RackWizard({ x, y, canManageLocations, onCancel, onConfirm }: RackWizardProps) {
-  const [form, setForm] = useState<RackBlueprint>({ ...INITIAL, x, y });
+  const [form, setForm] = useState<RackBlueprint>({
+    ...INITIAL,
+    x,
+    y,
+    create_locations: canManageLocations,
+  });
   const total = form.modules * form.levels * form.positions_per_level;
   const preview = useMemo(() => {
     const moduleWidth = form.width / Math.max(1, form.modules);
@@ -60,6 +65,7 @@ export function RackWizard({ x, y, canManageLocations, onCancel, onConfirm }: Ra
       zone: form.zone.trim().toUpperCase(),
       aisle: form.aisle.trim().toUpperCase(),
       rack: form.rack.trim().toUpperCase(),
+      create_locations: form.create_locations && canManageLocations,
     });
   }
 

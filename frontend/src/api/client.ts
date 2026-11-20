@@ -68,6 +68,9 @@ const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 // viaja únicamente en una cookie HttpOnly gestionada por el backend.
 let csrfToken: string | null = null;
 
+/** Evento central de caducidad de sesión; AuthContext decide cómo reaccionar. */
+export const UNAUTHORIZED_EVENT = 'erp:unauthorized';
+
 export function setCsrfToken(value: string | null): void {
   csrfToken = value;
 }
@@ -137,6 +140,15 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
       detail = body.detail ?? detail;
     } catch {
       // Respuesta sin cuerpo JSON.
+    }
+    const esCredencialDeSesion =
+      path.startsWith('/api/v1/auth/login') ||
+      path.startsWith('/api/v1/auth/change-password');
+    if (response.status === 401 && !esCredencialDeSesion) {
+      setCsrfToken(null);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
+      }
     }
     throw new ApiError(detail, response.status);
   }

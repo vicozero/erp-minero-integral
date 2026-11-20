@@ -140,7 +140,9 @@ class UserCreatedOut(UserAdminOut):
 
 class RoleAssignIn(BaseModel):
     role_code: str = Field(min_length=2, max_length=40)
-    scope_type: str = Field(default="GLOBAL", pattern=r"^(GLOBAL|DEPARTMENT|MINING_UNIT)$")
+    scope_type: str = Field(
+        default="GLOBAL", pattern=r"^(GLOBAL|DEPARTMENT|MINING_UNIT|WAREHOUSE)$"
+    )
     scope_id: uuid.UUID | None = None
 
     @field_validator("role_code")

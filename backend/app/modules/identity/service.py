@@ -9,12 +9,13 @@ from types import SimpleNamespace
 from typing import NoReturn
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import or_, select, update
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.context import current_request_id
 from app.core.security import (
+    credential_version,
     generate_csrf_token,
     generate_session_token,
     hash_password,
@@ -33,7 +34,7 @@ from app.modules.identity.models import (
     UserRole,
     UserSession,
 )
-from app.modules.organization.models import Department
+from app.modules.organization.models import Department, MiningUnit, Warehouse
 from app.shared.constants import (
     ADMIN_ROLE_CODES,
     PERMISSIONS,
@@ -58,6 +59,7 @@ class AuthenticationError(Exception):
 @dataclass(frozen=True)
 class LoginResult:
     user: AppUser
+    session: UserSession
     session_token: str
     csrf_token: str
     expires_at: datetime
@@ -99,7 +101,12 @@ class IdentityService:
         ip: str | None = None,
         user_agent: str | None = None,
     ) -> LoginResult:
-        user = db.execute(select(AppUser).where(AppUser.username == username)).scalar_one_or_none()
+        # Bloqueo de la fila de usuario durante todo el inicio de sesión: un
+        # cambio/restablecimiento de contraseña concurrente espera a que la
+        # sesión se cree con la versión de credencial correcta.
+        user = db.execute(
+            select(AppUser).where(AppUser.username == username).with_for_update()
+        ).scalar_one_or_none()
         ua_hash = _hash_user_agent(user_agent)
 
         def register_failure(reason: str, target: AppUser | None = user) -> None:
@@ -167,18 +174,18 @@ class IdentityService:
         session_token = generate_session_token()
         csrf_token = generate_csrf_token()
         expires_at = now + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-        db.add(
-            UserSession(
-                user_id=user.id,
-                token_hash=hash_token(session_token),
-                csrf_hash=hash_token(csrf_token),
-                created_at=now,
-                expires_at=expires_at,
-                last_seen_at=now,
-                ip_hash=hash_ip(ip),
-                user_agent_hash=ua_hash,
-            )
+        session = UserSession(
+            user_id=user.id,
+            token_hash=hash_token(session_token),
+            csrf_hash=hash_token(csrf_token),
+            credential_version=credential_version(user.password_changed_at),
+            created_at=now,
+            expires_at=expires_at,
+            last_seen_at=now,
+            ip_hash=hash_ip(ip),
+            user_agent_hash=ua_hash,
         )
+        db.add(session)
         db.add(
             LoginAudit(
                 user_id=user.id,
@@ -199,7 +206,7 @@ class IdentityService:
             ip_hash=hash_ip(ip),
         )
         db.flush()
-        return LoginResult(user, session_token, csrf_token, expires_at)
+        return LoginResult(user, session, session_token, csrf_token, expires_at)
 
     @staticmethod
     def session_by_token(db: Session, token: str) -> UserSession | None:
@@ -230,6 +237,30 @@ class IdentityService:
         ).scalars()
         for session in sessions:
             IdentityService.revoke_session(db, session, actor_id)
+
+    @staticmethod
+    def touch_session(session_id: uuid.UUID) -> None:
+        """Persiste ``last_seen_at`` fuera de la transacción de la petición.
+
+        Los endpoints de sólo lectura no hacen ``commit``; actualizar la marca
+        en la sesión inyectada la perdería al cerrarla. Esta escritura acotada
+        usa su propia sesión y se limita por frecuencia para no generar una
+        transacción por cada petición.
+        """
+        from app.db.session import SessionLocal
+
+        now = _now()
+        threshold = now - timedelta(seconds=settings.SESSION_LAST_SEEN_THROTTLE_SECONDS)
+        with SessionLocal() as db:
+            db.execute(
+                update(UserSession)
+                .where(
+                    UserSession.id == session_id,
+                    or_(UserSession.last_seen_at.is_(None), UserSession.last_seen_at < threshold),
+                )
+                .values(last_seen_at=now)
+            )
+            db.commit()
 
     # ------------------------------------------------------------------
     # RBAC
@@ -301,7 +332,9 @@ class IdentityService:
 
     @staticmethod
     def mining_unit_ids(db: Session, user_id: uuid.UUID) -> list[uuid.UUID]:
-        return [
+        """Unidades derivadas de departamentos y de roles con alcance explícito."""
+        now = _now()
+        from_departments = [
             unit_id
             for unit_id in db.execute(
                 select(Department.mining_unit_id)
@@ -314,6 +347,52 @@ class IdentityService:
             ).scalars()
             if unit_id is not None
         ]
+        from_roles = [
+            scope_id
+            for scope_id in db.execute(
+                select(UserRole.scope_id).where(
+                    UserRole.user_id == user_id,
+                    UserRole.scope_type == "MINING_UNIT",
+                    UserRole.scope_id.is_not(None),
+                    UserRole.valid_from <= now,
+                    (UserRole.valid_to.is_(None)) | (UserRole.valid_to > now),
+                )
+            ).scalars()
+            if scope_id is not None
+        ]
+        return list(set(from_departments) | set(from_roles))
+
+    @staticmethod
+    def allowed_warehouse_ids(db: Session, user_id: uuid.UUID) -> list[uuid.UUID] | None:
+        """Almacenes permitidos.
+
+        ``None`` significa acceso total (administrador). Una lista vacía no
+        autoriza ningún almacén. Se combinan el alcance por unidad minera y los
+        roles con ``scope_type='WAREHOUSE'`` para no depender de un único router.
+        """
+        if IdentityService.is_admin(db, user_id):
+            return None
+        now = _now()
+        explicit = [
+            scope_id
+            for scope_id in db.execute(
+                select(UserRole.scope_id).where(
+                    UserRole.user_id == user_id,
+                    UserRole.scope_type == "WAREHOUSE",
+                    UserRole.scope_id.is_not(None),
+                    UserRole.valid_from <= now,
+                    (UserRole.valid_to.is_(None)) | (UserRole.valid_to > now),
+                )
+            ).scalars()
+            if scope_id is not None
+        ]
+        unit_ids = IdentityService.mining_unit_ids(db, user_id)
+        from_units: list[uuid.UUID] = []
+        if unit_ids:
+            from_units = list(
+                db.execute(select(Warehouse.id).where(Warehouse.mining_unit_id.in_(unit_ids))).scalars()
+            )
+        return list(set(explicit) | set(from_units))
 
     @staticmethod
     def can_access_department(db: Session, user_id: uuid.UUID, department_id: uuid.UUID) -> bool:
@@ -328,9 +407,19 @@ class IdentityService:
         return mining_unit_id in IdentityService.mining_unit_ids(db, user_id)
 
     @staticmethod
+    def can_access_warehouse(db: Session, user_id: uuid.UUID, warehouse_id: uuid.UUID) -> bool:
+        allowed = IdentityService.allowed_warehouse_ids(db, user_id)
+        return allowed is None or warehouse_id in allowed
+
+    @staticmethod
     def assert_department_access(db: Session, user_id: uuid.UUID, department_id: uuid.UUID) -> None:
         if not IdentityService.can_access_department(db, user_id, department_id):
             _fail("No tiene acceso a registros de ese departamento.", status.HTTP_403_FORBIDDEN)
+
+    @staticmethod
+    def assert_warehouse_access(db: Session, user_id: uuid.UUID, warehouse_id: uuid.UUID) -> None:
+        if not IdentityService.can_access_warehouse(db, user_id, warehouse_id):
+            _fail("No tiene acceso a registros de ese almacén.", status.HTTP_403_FORBIDDEN)
 
     # ------------------------------------------------------------------
     # Administración de usuarios
@@ -586,11 +675,23 @@ class IdentityService:
         role = IdentityService._role_by_code(db, code)
         scope_type = payload.scope_type
         scope_id = payload.scope_id
-        if scope_type in {"DEPARTMENT", "MINING_UNIT"} and scope_id is None:
+        if scope_type in {"DEPARTMENT", "MINING_UNIT", "WAREHOUSE"} and scope_id is None:
             _fail("El alcance requiere un identificador.", status.HTTP_422_UNPROCESSABLE_ENTITY)
         if scope_type == "DEPARTMENT" and scope_id is not None:
+            if db.get(Department, scope_id) is None:
+                _fail("El departamento del alcance no existe.", status.HTTP_422_UNPROCESSABLE_ENTITY)
             if not IdentityService.can_access_department(db, actor_id, scope_id):
                 _fail("No puede asignar roles en ese departamento.", status.HTTP_403_FORBIDDEN)
+        if scope_type == "MINING_UNIT" and scope_id is not None:
+            if db.get(MiningUnit, scope_id) is None:
+                _fail("La unidad minera del alcance no existe.", status.HTTP_422_UNPROCESSABLE_ENTITY)
+            if not IdentityService.can_access_mining_unit(db, actor_id, scope_id):
+                _fail("No puede asignar roles en esa unidad minera.", status.HTTP_403_FORBIDDEN)
+        if scope_type == "WAREHOUSE" and scope_id is not None:
+            if db.get(Warehouse, scope_id) is None:
+                _fail("El almacén del alcance no existe.", status.HTTP_422_UNPROCESSABLE_ENTITY)
+            if not IdentityService.can_access_warehouse(db, actor_id, scope_id):
+                _fail("No puede asignar roles en ese almacén.", status.HTTP_403_FORBIDDEN)
         existing = db.execute(
             select(UserRole).where(
                 UserRole.user_id == user_id,
@@ -701,7 +802,9 @@ class IdentityService:
 
     @staticmethod
     def change_password(db: Session, user_id: uuid.UUID, current: str, new: str, actor_id: uuid.UUID) -> None:
-        user = db.get(AppUser, user_id)
+        user = db.execute(
+            select(AppUser).where(AppUser.id == user_id).with_for_update()
+        ).scalar_one_or_none()
         if user is None:
             _fail("Usuario inexistente.", status.HTTP_404_NOT_FOUND)
         if not verify_password(current, user.password_hash):
@@ -730,11 +833,20 @@ class IdentityService:
 
     @staticmethod
     def reset_password(db: Session, user_id: uuid.UUID, actor_id: uuid.UUID, reason: str | None) -> str:
-        user = db.get(AppUser, user_id)
+        user = db.execute(
+            select(AppUser).where(AppUser.id == user_id).with_for_update()
+        ).scalar_one_or_none()
         if user is None:
             _fail("Usuario inexistente.", status.HTTP_404_NOT_FOUND)
         if user.status == "INACTIVE":
             _fail("La cuenta está inactiva; reactívela antes de restablecer.", status.HTTP_400_BAD_REQUEST)
+        if SUPERADMIN_ROLE_CODE in IdentityService.role_codes(db, user_id) and (
+            SUPERADMIN_ROLE_CODE not in IdentityService.role_codes(db, actor_id)
+        ):
+            _fail(
+                "Solo un superadministrador puede restablecer la contraseña de otro superadministrador.",
+                status.HTTP_403_FORBIDDEN,
+            )
         temporary = generate_temporary_password()
         user.password_hash = hash_password(temporary)
         user.password_changed_at = _now()

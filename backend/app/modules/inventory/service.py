@@ -11,7 +11,13 @@ from sqlalchemy.orm import Session
 
 from app.modules.audit.service import AuditService
 from app.modules.documentation.models import DocumentRegistry
-from app.modules.inventory.models import NULL_UUID, StockBalance, StockMovement, StockReservation
+from app.modules.inventory.models import (
+    NULL_UUID,
+    StockBalance,
+    StockBalanceDetail,
+    StockMovement,
+    StockReservation,
+)
 from app.modules.master_data.models import Item
 from app.modules.organization.models import Warehouse
 from app.modules.requisitions.models import Requisition, RequisitionLine
@@ -30,7 +36,103 @@ def _fail(detail: str, code: int = status.HTTP_409_CONFLICT) -> NoReturn:
     raise InventoryError(status_code=code, detail=detail)
 
 
-def _get_or_create_balance(db: Session, warehouse_id: uuid.UUID, item_id: uuid.UUID) -> StockBalance:
+def _sync_balance_detail(
+    db: Session,
+    balance: StockBalance,
+    actor_id: uuid.UUID | None,
+) -> StockBalanceDetail:
+    """Mantiene la proyección detallada alineada con el saldo agregado.
+
+    El trigger de reconciliación y el backfill documentado comparan sumas por
+    ``(warehouse_id, item_id)``, no por ``stock_balance_id``. Por eso se busca
+    el detalle por el ámbito canónico y se le asigna el total del saldo agregado
+    menos el resto de renglones de detalle del mismo par. Así funciona tanto con
+    un backfill previo como con varios saldos heredados por almacén/artículo.
+    """
+    balances = list(
+        db.execute(
+            select(StockBalance)
+            .where(
+                StockBalance.warehouse_id == balance.warehouse_id,
+                StockBalance.item_id == balance.item_id,
+            )
+            .order_by(StockBalance.id)
+            .with_for_update()
+        ).scalars()
+    )
+    legacy_on_hand = sum((row.on_hand_qty for row in balances), Decimal("0"))
+    legacy_reserved = sum((row.reserved_qty for row in balances), Decimal("0"))
+
+    details = list(
+        db.execute(
+            select(StockBalanceDetail)
+            .where(
+                StockBalanceDetail.warehouse_id == balance.warehouse_id,
+                StockBalanceDetail.item_id == balance.item_id,
+            )
+            .order_by(StockBalanceDetail.created_at, StockBalanceDetail.id)
+            .with_for_update()
+        ).scalars()
+    )
+
+    def canonical_scope(row: StockBalanceDetail) -> tuple[uuid.UUID, uuid.UUID, str, uuid.UUID]:
+        return (
+            row.lot_ref_id or NULL_UUID,
+            row.serial_id or NULL_UUID,
+            row.stock_state,
+            row.location_ref_id or NULL_UUID,
+        )
+
+    target_scope = (
+        balance.lot_ref_id or NULL_UUID,
+        NULL_UUID,
+        "AVAILABLE",
+        balance.location_ref_id or NULL_UUID,
+    )
+    own = [row for row in details if canonical_scope(row) == target_scope]
+    if len(own) > 1:
+        _fail("Existe más de una proyección detallada para el mismo ámbito.")
+    other = [row for row in details if canonical_scope(row) != target_scope]
+    other_on_hand = sum((row.on_hand_qty for row in other), Decimal("0"))
+    other_reserved = sum((row.reserved_qty for row in other), Decimal("0"))
+    target_on_hand = legacy_on_hand - other_on_hand
+    target_reserved = legacy_reserved - other_reserved
+    if target_on_hand < 0 or target_reserved < 0 or target_reserved > target_on_hand:
+        _fail("La proyección detallada no puede conciliarse con el saldo agregado.")
+
+    if own:
+        detail = own[0]
+        detail.on_hand_qty = target_on_hand
+        detail.reserved_qty = target_reserved
+        detail.lot_ref_id = balance.lot_ref_id
+        detail.location_ref_id = balance.location_ref_id
+        detail.updated_by = actor_id
+        detail.updated_at = datetime.now(timezone.utc)
+        detail.version += 1
+    else:
+        detail = StockBalanceDetail(
+            stock_balance_id=balance.id,
+            warehouse_id=balance.warehouse_id,
+            item_id=balance.item_id,
+            lot_ref_id=balance.lot_ref_id,
+            serial_id=None,
+            stock_state="AVAILABLE",
+            location_ref_id=balance.location_ref_id,
+            on_hand_qty=target_on_hand,
+            reserved_qty=target_reserved,
+            created_by=actor_id,
+        )
+        db.add(detail)
+    db.flush()
+    return detail
+
+
+def _get_or_create_balance(
+    db: Session,
+    warehouse_id: uuid.UUID,
+    item_id: uuid.UUID,
+    actor_id: uuid.UUID | None = None,
+) -> StockBalance:
     balance = db.execute(
         select(StockBalance)
         .where(
@@ -49,9 +151,11 @@ def _get_or_create_balance(db: Session, warehouse_id: uuid.UUID, item_id: uuid.U
             location_id=NULL_UUID,
             on_hand_qty=Decimal("0"),
             reserved_qty=Decimal("0"),
+            created_by=actor_id,
         )
         db.add(balance)
         db.flush()
+    _sync_balance_detail(db, balance, actor_id)
     return balance
 
 
@@ -79,6 +183,7 @@ def _release_reservation(
     ).scalar_one_or_none()
     if balance is not None:
         balance.reserved_qty = max(Decimal("0"), balance.reserved_qty - remaining)
+        _sync_balance_detail(db, balance, actor_id)
     reservation.status = new_status
     reservation.updated_by = actor_id
     AuditService.record(
@@ -176,18 +281,26 @@ class InventoryService:
         return len(reservations)
 
     @staticmethod
-    def expire_reservations(db: Session, actor_id: uuid.UUID) -> int:
-        """Libera reservas vencidas. Devuelve el número de reservas liberadas."""
+    def expire_reservations(
+        db: Session,
+        actor_id: uuid.UUID,
+        warehouse_ids: list[uuid.UUID] | None = None,
+    ) -> int:
+        """Libera reservas vencidas del alcance indicado.
+
+        ``warehouse_ids=None`` conserva el comportamiento global para
+        administradores; una lista vacía no libera ninguna reserva.
+        """
         now = datetime.now(timezone.utc)
+        stmt = select(StockReservation).where(
+            StockReservation.status == "ACTIVE",
+            StockReservation.expires_at <= now,
+        )
+        if warehouse_ids is not None:
+            stmt = stmt.where(StockReservation.warehouse_id.in_(warehouse_ids))
         reservations = list(
             db.execute(
-                select(StockReservation)
-                .where(
-                    StockReservation.status == "ACTIVE",
-                    StockReservation.expires_at <= now,
-                )
-                .order_by(StockReservation.expires_at)
-                .with_for_update()
+                stmt.order_by(StockReservation.expires_at).with_for_update(of=StockReservation)
             ).scalars()
         )
         for reservation in reservations:
@@ -277,7 +390,7 @@ class InventoryService:
         if payload.quantity > remaining_auth:
             _fail("La cantidad excede lo autorizado pendiente de reservar.")
 
-        balance = _get_or_create_balance(db, req.warehouse_id, line.item_id)
+        balance = _get_or_create_balance(db, req.warehouse_id, line.item_id, actor_id)
         available = balance.on_hand_qty - balance.reserved_qty
         if payload.quantity > available:
             _fail("Existencia disponible insuficiente.")
@@ -305,6 +418,7 @@ class InventoryService:
         )
         db.add(reservation)
         balance.reserved_qty += payload.quantity
+        _sync_balance_detail(db, balance, actor_id)
         db.flush()
         attach_entity(db, registry, "StockReservation", reservation.id)
         record_document_event(db, registry, "STOCK_RESERVED", req.status, req.status, actor_id)
@@ -386,7 +500,13 @@ class InventoryService:
         if delivered + payload.quantity > line.authorised_qty:
             _fail("La entrega excede la cantidad autorizada.")
 
-        balance = _get_or_create_balance(db, req.warehouse_id, line.item_id or reservations[0].item_id)
+        balance = _get_or_create_balance(
+            db, req.warehouse_id, line.item_id or reservations[0].item_id, actor_id
+        )
+        if balance.on_hand_qty - payload.quantity < Decimal("0"):
+            _fail("La entrega dejaría existencia negativa.")
+        if balance.reserved_qty - payload.quantity < Decimal("0"):
+            _fail("La entrega excede la cantidad reservada.")
         remaining = payload.quantity
         for reservation in reservations:
             if remaining <= 0:
@@ -400,8 +520,7 @@ class InventoryService:
 
         balance.on_hand_qty -= payload.quantity
         balance.reserved_qty -= payload.quantity
-        if balance.on_hand_qty < Decimal("0"):
-            _fail("La entrega dejaría existencia negativa.")
+        _sync_balance_detail(db, balance, actor_id)
 
         registry, movement_no = next_document_number(
             db,
@@ -487,8 +606,9 @@ class InventoryService:
                 return existing
             _fail("La clave de idempotencia ya fue utilizada por otra operación.")
 
-        balance = _get_or_create_balance(db, warehouse_id, item_id)
+        balance = _get_or_create_balance(db, warehouse_id, item_id, actor_id)
         balance.on_hand_qty += quantity
+        _sync_balance_detail(db, balance, actor_id)
         registry, movement_no = next_document_number(
             db,
             "INV_MOV",

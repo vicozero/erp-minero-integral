@@ -34,10 +34,24 @@ class Settings(BaseSettings):
     # necesita CORS. Los orígenes por defecto solo cubren el servidor de
     # desarrollo de Vite en localhost; el perfil piloto puede dejarlos vacíos.
     CORS_ALLOW_ORIGINS: str = "http://127.0.0.1:5173,http://localhost:5173"
-    # Host/Origen permitidos para la API. `testserver` cubre las pruebas con
-    # TestClient. En intranet se reemplaza por el FQDN interno autorizado.
-    ALLOWED_HOSTS: str = "127.0.0.1,localhost,testserver"
+    # Host permitidos, con puerto cuando aplique. `testserver` cubre las
+    # pruebas con TestClient. En intranet se reemplaza por el FQDN autorizado.
+    ALLOWED_HOSTS: str = (
+        "127.0.0.1,localhost,testserver,"
+        "127.0.0.1:8000,localhost:8000,"
+        "127.0.0.1:8080,localhost:8080,"
+        "127.0.0.1:5173,localhost:5173"
+    )
+    # Hosts internos desde los que se acepta X-Forwarded-Host/Proto. Se deriva
+    # de la configuración real del proxy; no debe quedar fijado al puerto 8000.
+    TRUSTED_PROXY_HOSTS: str = "127.0.0.1:8000,localhost:8000"
+    # Intervalo mínimo entre dos actualizaciones persistentes de last_seen_at.
+    SESSION_LAST_SEEN_THROTTLE_SECONDS: int = 60
     SECURITY_HSTS_ENABLED: bool = False
+
+    # Separación de funciones en compras. Por defecto el comprador que creó una
+    # orden no puede aprobarla. Habilitar sólo con decisión formal documentada.
+    ALLOW_PURCHASE_ORDER_SELF_APPROVAL: bool = False
 
     # Lote B del WMS. Desactivado por defecto: B.0 solo define contratos y
     # permisos; ningún router nuevo se registra todavía. Su activación se

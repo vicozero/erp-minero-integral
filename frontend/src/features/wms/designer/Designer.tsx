@@ -2,6 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type
 import { api, ApiError, describeApiError } from '../../../api/client';
 import type { LocationInventory, LocationMap, WmsLocation } from '../../../api/types';
 import { LoadingState } from '../../../components/ui';
+import { SceneErrorBoundary } from '../SceneErrorBoundary';
 import { DesignerCanvas } from './DesignerCanvas';
 import { TOOL_GROUPS, TOOL_ICONS, TOOL_LABELS } from './constants';
 import { PropertiesPanel } from './PropertiesPanel';
@@ -399,6 +400,7 @@ export function Designer({
       }
       setWizardOpen(false);
       setNotice(`${result.total_positions} posiciones potenciales · ${result.created_count} ubicaciones WMS creadas. ${result.warning}`);
+      onSaved?.();
     } catch (exc) {
       setError(describeApiError(exc, 'No se pudo crear el rack.'));
     } finally {
@@ -745,18 +747,20 @@ export function Designer({
                   />
                 </>
               ) : (
-                <Suspense fallback={<LoadingState rows={4} label="Preparando vista 3D…" />}>
-                  <Designer3D
-                    elements={scene.elements}
-                    width={scene.width}
-                    height={scene.height}
-                    selectedIds={selectedIds}
-                    showWalls={showWalls}
-                    cameraPreset={cameraPreset}
-                    resetToken={resetToken}
-                    onSelect={setSelectedIds}
-                  />
-                </Suspense>
+                <SceneErrorBoundary onFallback={() => setView('2d')}>
+                  <Suspense fallback={<LoadingState rows={4} label="Preparando vista 3D…" />}>
+                    <Designer3D
+                      elements={scene.elements}
+                      width={scene.width}
+                      height={scene.height}
+                      selectedIds={selectedIds}
+                      showWalls={showWalls}
+                      cameraPreset={cameraPreset}
+                      resetToken={resetToken}
+                      onSelect={setSelectedIds}
+                    />
+                  </Suspense>
+                </SceneErrorBoundary>
               )}
             </div>
             {workspace?.versions.length ? (

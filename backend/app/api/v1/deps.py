@@ -3,13 +3,14 @@ from __future__ import annotations
 from collections.abc import Callable
 from datetime import datetime, timezone
 
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import BackgroundTasks, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
 from app.core.security import (
     CSRF_HEADER_NAME,
     SESSION_COOKIE_NAME,
+    credential_version,
     decode_access_token,
     hash_token,
     tokens_equal,
@@ -44,23 +45,36 @@ def _session_from_request(db: Session, request: Request) -> UserSession | None:
 
 def get_current_user(
     request: Request,
+    background_tasks: BackgroundTasks,
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer),
     db: Session = Depends(get_db),
 ) -> AppUser:
-    """Acepta cookie de sesión (portal) o Bearer (integraciones heredadas).
+    """Acepta cookie de sesión o Bearer ligado a esa misma sesión.
 
-    Las peticiones con cookie requieren CSRF en métodos que modifican estado.
-    La autenticación por Bearer se conserva para compatibilidad con clientes
-    internos de la Fase 2 y las pruebas de regresión.
+    No existen dos autoridades de autenticación: el Bearer sólo identifica una
+    sesión de `seg.user_session`. Si la sesión se revoca, caduca o cambia la
+    contraseña, el token deja de servir aunque su `exp` no haya vencido.
     """
-    # Bearer explícito gana sobre la cookie: clientes internos y pruebas de
-    # integración no deben verse afectados por la cookie del portal web.
     if credentials is not None:
-        user_id = decode_access_token(credentials.credentials)
-        user = db.get(AppUser, user_id)
+        claims = decode_access_token(credentials.credentials)
+        user = db.get(AppUser, claims.user_id)
         if user is None or user.status != "ACTIVE":
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Usuario inactivo.")
-        request.state.session_id = None
+        session = db.get(UserSession, claims.session_id)
+        if (
+            session is None
+            or session.user_id != user.id
+            or not IdentityService.is_session_valid(session)
+            or credential_version(user.password_changed_at) != claims.credential_version
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Sesión revocada, caducada o credencial modificada.",
+            )
+        session.last_seen_at = datetime.now(timezone.utc)
+        background_tasks.add_task(IdentityService.touch_session, session.id)
+        request.state.session_id = session.id
+        request.state.session = session
         return user
 
     session = _session_from_request(db, request)
@@ -70,7 +84,16 @@ def get_current_user(
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Usuario inexistente.")
         if user.status != "ACTIVE":
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Usuario inactivo.")
+        if (
+            session.credential_version is None
+            or session.credential_version != credential_version(user.password_changed_at)
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Sesión revocada, caducada o credencial modificada.",
+            )
         session.last_seen_at = datetime.now(timezone.utc)
+        background_tasks.add_task(IdentityService.touch_session, session.id)
         request.state.session_id = session.id
         request.state.session = session
         return user

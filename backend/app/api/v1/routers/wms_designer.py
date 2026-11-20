@@ -113,6 +113,8 @@ def publish(
         plan_id,
         revision,
         notes,
+        can_edit=_can(db, actor, "warehouse.plan.draft"),
+        can_publish=_can(db, actor, "warehouse.plan.publish"),
     )
     db.commit()
     return result

@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { api, setCsrfToken } from '../api/client';
+import { api, setCsrfToken, UNAUTHORIZED_EVENT } from '../api/client';
 import type { User } from '../api/types';
 
 interface AuthState {
@@ -32,6 +32,18 @@ export function AuthProvider({
 }) {
   const [user, setUser] = useState<User | null>(initialUser ?? null);
   const [loading, setLoading] = useState(initialUser === undefined);
+
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      setCsrfToken(null);
+      setUser(null);
+      if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+        window.location.assign('/login');
+      }
+    };
+    window.addEventListener(UNAUTHORIZED_EVENT, handleUnauthorized);
+    return () => window.removeEventListener(UNAUTHORIZED_EVENT, handleUnauthorized);
+  }, []);
 
   useEffect(() => {
     if (initialUser !== undefined) return;

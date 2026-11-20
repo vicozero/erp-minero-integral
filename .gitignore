@@ -44,3 +44,9 @@ Desktop.ini
 playwright-report/
 test-results/
 blob-report/
+
+# Artefactos locales que no forman parte del código versionado
+*.tsbuildinfo
+/*.png
+/*.pdf
+docs/plantillas_referencia/

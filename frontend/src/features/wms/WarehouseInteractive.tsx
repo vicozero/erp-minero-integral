@@ -47,6 +47,7 @@ function Kpi({ label, value, detail, tone }: { label: string; value: string | nu
 export function WarehouseInteractive() {
   const { user } = useAuth();
   const canManageMap = can(user, ...PERM.MANAGE_MAPS);
+  const canManageLocations = can(user, ...PERM.MANAGE_LOCATIONS);
   const canViewMaps = can(user, ...PERM.VIEW_MAPS);
   const canViewStock = can(user, ...PERM.VIEW_STOCK_COST);
   const canOpenDesigner = canViewMaps || can(user, ...PERM.VIEW_PLANS);
@@ -556,7 +557,7 @@ export function WarehouseInteractive() {
           }
           canEdit={canEditPlan}
           canPublish={canPublishPlan}
-          canManageLocations={canManageMap}
+          canManageLocations={canManageLocations}
           canViewCost={canViewStock}
           onClose={() => setDesignerOpen(false)}
           onSaved={() => void loadWorkspace(warehouseId)}

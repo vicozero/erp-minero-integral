@@ -10,7 +10,13 @@ from sqlalchemy.orm import Session
 from app.api.v1.deps import get_current_user
 from app.core.config import settings
 from app.core.cookies import delete_session_cookies, set_session_cookies
-from app.core.security import create_access_token, generate_csrf_token, generate_session_token, hash_token
+from app.core.security import (
+    create_access_token,
+    credential_version,
+    generate_csrf_token,
+    generate_session_token,
+    hash_token,
+)
 from app.db.session import get_db
 from app.modules.identity.models import AppUser, UserSession
 from app.modules.audit.service import AuditService, hash_ip
@@ -52,7 +58,11 @@ def login(
     db.commit()
     set_session_cookies(response, result.session_token, result.csrf_token, result.expires_at)
     return SessionResponse(
-        access_token=create_access_token(result.user.id),
+        access_token=create_access_token(
+            result.user.id,
+            result.session.id,
+            credential_version(result.user.password_changed_at),
+        ),
         token_type="bearer",
         csrf_token=result.csrf_token,
         expires_at=result.expires_at,
@@ -129,27 +139,33 @@ def change_password(
         payload.new_password,
         current_user.id,
     )
-    # Se emite una sesión nueva: las anteriores quedan revocadas.
+    # Se emite una sesión nueva: las anteriores quedan revocadas y el Bearer
+    # anterior deja de ser aceptado porque apuntaba a una sesión revocada.
     now = datetime.now(timezone.utc)
     session_token = generate_session_token()
     csrf_token = generate_csrf_token()
     expires_at = now + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    db.add(
-        UserSession(
-            user_id=current_user.id,
-            token_hash=hash_token(session_token),
-            csrf_hash=hash_token(csrf_token),
-            created_at=now,
-            expires_at=expires_at,
-            last_seen_at=now,
-            ip_hash=hash_ip(request.client.host if request.client else None),
-            user_agent_hash=None,
-        )
+    new_session = UserSession(
+        user_id=current_user.id,
+        token_hash=hash_token(session_token),
+        csrf_hash=hash_token(csrf_token),
+        credential_version=credential_version(current_user.password_changed_at),
+        created_at=now,
+        expires_at=expires_at,
+        last_seen_at=now,
+        ip_hash=hash_ip(request.client.host if request.client else None),
+        user_agent_hash=None,
     )
+    db.add(new_session)
+    db.flush()
     db.commit()
     set_session_cookies(response, session_token, csrf_token, expires_at)
     return SessionResponse(
-        access_token=create_access_token(current_user.id),
+        access_token=create_access_token(
+            current_user.id,
+            new_session.id,
+            credential_version(current_user.password_changed_at),
+        ),
         csrf_token=csrf_token,
         expires_at=expires_at,
         must_change_password=False,

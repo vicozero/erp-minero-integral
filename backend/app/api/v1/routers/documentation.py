@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.api.v1.deps import require_permission
@@ -64,7 +64,14 @@ def list_vouchers(
     stmt = select(WarehouseVoucher)
     if not IdentityService.is_admin(db, actor.id):
         allowed = IdentityService.department_ids(db, actor.id)
+        allowed_warehouses = IdentityService.allowed_warehouse_ids(db, actor.id)
         stmt = stmt.where(WarehouseVoucher.department_id.in_(allowed))
+        stmt = stmt.where(
+            or_(
+                WarehouseVoucher.warehouse_id.is_(None),
+                WarehouseVoucher.warehouse_id.in_(allowed_warehouses or []),
+            )
+        )
     if status_filter:
         stmt = stmt.where(WarehouseVoucher.status == status_filter)
     if department_id is not None:
@@ -87,6 +94,8 @@ def get_voucher(
     if voucher is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vale inexistente.")
     IdentityService.assert_department_access(db, actor.id, voucher.department_id)
+    if voucher.warehouse_id is not None:
+        IdentityService.assert_warehouse_access(db, actor.id, voucher.warehouse_id)
     return Service.to_out(voucher)
 
 
@@ -125,6 +134,8 @@ def list_voucher_renders(
     if voucher is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vale inexistente.")
     IdentityService.assert_department_access(db, actor.id, voucher.department_id)
+    if voucher.warehouse_id is not None:
+        IdentityService.assert_warehouse_access(db, actor.id, voucher.warehouse_id)
     return Service.list_renders(db, "WarehouseVoucher", voucher.id)
 
 

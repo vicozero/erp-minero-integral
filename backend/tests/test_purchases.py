@@ -44,13 +44,13 @@ def test_oc_por_faltantes_aprobacion_y_recepciones_parciales(client):
     assert Decimal(po["lines"][1]["ordered_qty"]) == Decimal("3")
 
     approved = client.post(
-        f"/api/v1/purchases/{po['id']}/approve", headers=comprador
+        f"/api/v1/purchases/{po['id']}/approve", headers=auth_header(client)
     )
     assert approved.status_code == 200, approved.text
     assert approved.json()["status"] == "APPROVED"
 
     repeated = client.post(
-        f"/api/v1/purchases/{po['id']}/approve", headers=comprador
+        f"/api/v1/purchases/{po['id']}/approve", headers=auth_header(client)
     )
     assert repeated.status_code == 409
 
@@ -103,7 +103,7 @@ def test_recepcion_duplicada_no_genera_nuevo_kardex(client):
     req, catalog = approved_requisition(client)
     comprador = auth_header(client, "demo.comprador")
     po = create_po(client, comprador, catalog, req["id"]).json()
-    client.post(f"/api/v1/purchases/{po['id']}/approve", headers=comprador)
+    client.post(f"/api/v1/purchases/{po['id']}/approve", headers=auth_header(client))
 
     payload = {
         "lines": [
@@ -133,7 +133,7 @@ def test_sobre_recepcion_y_cantidad_negativa_bloqueadas(client):
     req, catalog = approved_requisition(client)
     comprador = auth_header(client, "demo.comprador")
     po = create_po(client, comprador, catalog, req["id"]).json()
-    client.post(f"/api/v1/purchases/{po['id']}/approve", headers=comprador)
+    client.post(f"/api/v1/purchases/{po['id']}/approve", headers=auth_header(client))
     line_id = po["lines"][0]["id"]
 
     over = client.post(
@@ -202,7 +202,7 @@ def test_recepcion_permitecompletar_entrega_pendiente(client):
 
     comprador = auth_header(client, "demo.comprador")
     po = create_po(client, comprador, catalog, req_id).json()
-    client.post(f"/api/v1/purchases/{po['id']}/approve", headers=comprador)
+    client.post(f"/api/v1/purchases/{po['id']}/approve", headers=auth_header(client))
     receipt = client.post(
         f"/api/v1/purchases/{po['id']}/receive",
         headers=comprador,

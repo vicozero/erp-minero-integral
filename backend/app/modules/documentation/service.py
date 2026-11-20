@@ -86,7 +86,15 @@ class DocumentationService:
                 _fail("Almacén inexistente.", status.HTTP_404_NOT_FOUND)
             if warehouse.company_id != department.company_id:
                 _fail("El almacén pertenece a otra compañía.", status.HTTP_422_UNPROCESSABLE_ENTITY)
+        if warehouse_id is not None:
+            IdentityService.assert_warehouse_access(db, actor_id, warehouse_id)
         return department.company_id, unit.id, department
+
+    @staticmethod
+    def _assert_voucher_access(db: Session, actor_id: uuid.UUID, voucher: WarehouseVoucher) -> None:
+        IdentityService.assert_department_access(db, actor_id, voucher.department_id)
+        if voucher.warehouse_id is not None:
+            IdentityService.assert_warehouse_access(db, actor_id, voucher.warehouse_id)
 
     @staticmethod
     def _voucher_lines_from_requisition(
@@ -278,7 +286,7 @@ class DocumentationService:
         ).scalar_one_or_none()
         if voucher is None:
             _fail("Vale inexistente.", status.HTTP_404_NOT_FOUND)
-        IdentityService.assert_department_access(db, actor_id, voucher.department_id)
+        DocumentationService._assert_voucher_access(db, actor_id, voucher)
         if voucher.status == "ISSUED":
             return voucher
         if voucher.source_requisition_id is None:
@@ -329,7 +337,7 @@ class DocumentationService:
         ).scalar_one_or_none()
         if voucher is None:
             _fail("Vale inexistente.", status.HTTP_404_NOT_FOUND)
-        IdentityService.assert_department_access(db, actor_id, voucher.department_id)
+        DocumentationService._assert_voucher_access(db, actor_id, voucher)
         fields = ("received_by_name", "authorized_by_name", "dispatched_by_name")
         changed: dict[str, str] = {}
         for field in fields:
@@ -597,7 +605,7 @@ class DocumentationService:
         voucher = db.get(WarehouseVoucher, voucher_id)
         if voucher is None:
             _fail("Vale inexistente.", status.HTTP_404_NOT_FOUND)
-        IdentityService.assert_department_access(db, actor_id, voucher.department_id)
+        DocumentationService._assert_voucher_access(db, actor_id, voucher)
         document_format = document_format.upper()
         if document_format not in ("PDF", "XLSX"):
             _fail("Formato no soportado.", status.HTTP_422_UNPROCESSABLE_ENTITY)
@@ -605,28 +613,32 @@ class DocumentationService:
         source = DocumentationService._latest_render(db, "WarehouseVoucher", voucher.id, document_format)
         if reprint and source is not None:
             path = settings.DOCUMENT_STORAGE_DIR / source.storage_name
-            if path.is_file():
-                content = path.read_bytes()
-                render = DocumentationService._store_and_record(
-                    db,
-                    actor_id=actor_id,
-                    template=template,
-                    entity_type="WarehouseVoucher",
-                    entity_id=voucher.id,
-                    document_no=voucher.document_no,
-                    document_format=document_format,
-                    content=content,
-                    is_reprint=True,
-                    source_render_id=source.id,
-                    metadata={"reprint_of": str(source.id)},
+            if not path.is_file():
+                _fail(
+                    "El render original no está disponible; no se puede reimprimir.",
+                    status.HTTP_409_CONFLICT,
                 )
-                registry = db.get(DocumentRegistry, voucher.document_registry_id)
-                if registry is not None:
-                    record_document_event(
-                        db, registry, "VOUCHER_REPRINTED", voucher.status, voucher.status, actor_id,
-                        {"format": document_format, "source_render_id": str(source.id)},
-                    )
-                return render, content
+            content = path.read_bytes()
+            render = DocumentationService._store_and_record(
+                db,
+                actor_id=actor_id,
+                template=template,
+                entity_type="WarehouseVoucher",
+                entity_id=voucher.id,
+                document_no=voucher.document_no,
+                document_format=document_format,
+                content=content,
+                is_reprint=True,
+                source_render_id=source.id,
+                metadata={"reprint_of": str(source.id)},
+            )
+            registry = db.get(DocumentRegistry, voucher.document_registry_id)
+            if registry is not None:
+                record_document_event(
+                    db, registry, "VOUCHER_REPRINTED", voucher.status, voucher.status, actor_id,
+                    {"format": document_format, "source_render_id": str(source.id)},
+                )
+            return render, content
         data = DocumentationService._voucher_data(db, voucher)
         content = render_va_pdf(data) if document_format == "PDF" else render_va_xlsx(data)
         render = DocumentationService._store_and_record(

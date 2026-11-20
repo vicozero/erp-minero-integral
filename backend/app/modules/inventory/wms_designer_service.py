@@ -18,6 +18,7 @@ from decimal import Decimal
 from typing import Any, NoReturn
 
 from fastapi import HTTPException, status
+from pydantic import ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -55,6 +56,23 @@ def _warehouse(
     if warehouse is None:
         _fail("Almacén inexistente.", status.HTTP_404_NOT_FOUND)
     return warehouse
+
+
+def _assert_location_ids_in_warehouse(
+    db: Session, warehouse_id: uuid.UUID, location_ids: set[uuid.UUID]
+) -> None:
+    if not location_ids:
+        return
+    found = set(
+        db.execute(
+            select(StorageLocation.id).where(
+                StorageLocation.warehouse_id == warehouse_id,
+                StorageLocation.id.in_(location_ids),
+            )
+        ).scalars()
+    )
+    if found != location_ids:
+        _fail("Una o más ubicaciones WMS no pertenecen a este almacén.")
 
 
 def _decimal(value: Any) -> float:
@@ -287,6 +305,15 @@ class WmsDesignerService:
                 "El plano fue modificado por otro usuario. Recargue antes de guardar.",
                 status.HTTP_409_CONFLICT,
             )
+        _assert_location_ids_in_warehouse(
+            db,
+            warehouse_id,
+            {
+                uuid.UUID(str(element.wms_location_id))
+                for element in payload.elements
+                if element.wms_location_id is not None
+            },
+        )
         before = _apply_payload(draft, payload, actor_id)
         AuditService.record(
             db,
@@ -309,6 +336,9 @@ class WmsDesignerService:
         plan_id: uuid.UUID,
         expected_revision: int,
         notes: str | None = None,
+        *,
+        can_edit: bool = True,
+        can_publish: bool = True,
     ) -> FloorPlanWorkspaceOut:
         _warehouse(db, warehouse_id, warehouse_ids)
         draft = db.execute(
@@ -325,6 +355,15 @@ class WmsDesignerService:
             )
         if not draft.elements:
             _fail("No se puede publicar un plano vacío.")
+        _assert_location_ids_in_warehouse(
+            db,
+            warehouse_id,
+            {
+                uuid.UUID(str(element["wms_location_id"]))
+                for element in draft.elements
+                if element.get("wms_location_id")
+            },
+        )
         current = db.execute(
             select(FloorPlan)
             .where(
@@ -407,7 +446,7 @@ class WmsDesignerService:
             detail=notes,
         )
         return WmsDesignerService.workspace(
-            db, actor_id, warehouse_ids, warehouse_id, can_edit=True, can_publish=True
+            db, actor_id, warehouse_ids, warehouse_id, can_edit=can_edit, can_publish=can_publish
         )
 
     @staticmethod
@@ -443,6 +482,9 @@ class WmsDesignerService:
         element_slug = "".join(char if char.isalnum() else "-" for char in rack_code.lower())
         while "--" in element_slug:
             element_slug = element_slug.replace("--", "-")
+        # Sufijo único: códigos distintos pueden colapsar al mismo slug y
+        # provocar IDs duplicados dentro de la escena.
+        element_slug = f"{element_slug}-{uuid.uuid4().hex[:8]}"
         if any(
             str(element.get("code", "")).upper() == rack_code
             for element in draft.elements
@@ -454,12 +496,17 @@ class WmsDesignerService:
         rack_depth = _decimal(payload.depth)
         if _decimal(payload.x) + rack_width > width or _decimal(payload.y) + rack_depth > height:
             _fail("El rack no cabe dentro del lienzo del plano.")
+        if payload.capacity_validated and payload.capacity_per_position <= 0:
+            _fail("La capacidad validada debe ser mayor que cero.")
+        level_height = _decimal(payload.level_height)
+        total_height = level_height * payload.levels
+        if total_height > 100_000 or _decimal(payload.y) + total_height > height:
+            _fail("La altura acumulada de niveles excede el lienzo del plano.")
 
         codes: list[str] = []
         specs: list[dict[str, Any]] = []
         module_width = rack_width / payload.modules
         slot_width = module_width / payload.positions_per_level
-        level_height = _decimal(payload.level_height)
         for module in range(payload.modules):
             for level in range(payload.levels):
                 for slot in range(payload.positions_per_level):
@@ -576,17 +623,20 @@ class WmsDesignerService:
             )
         )
         merged = list(draft.elements) + [rack_element] + elements
-        payload_update = PlanPayloadIn(
-            label=draft.label,
-            width=draft.width,
-            height=draft.height,
-            grid_size=draft.grid_size,
-            scale_label=draft.scale_label,
-            dimensions_verified=draft.dimensions_verified,
-            elements=merged,
-            revision=draft.revision,
-            notes=draft.notes,
-        )
+        try:
+            payload_update = PlanPayloadIn(
+                label=draft.label,
+                width=draft.width,
+                height=draft.height,
+                grid_size=draft.grid_size,
+                scale_label=draft.scale_label,
+                dimensions_verified=draft.dimensions_verified,
+                elements=merged,
+                revision=draft.revision,
+                notes=draft.notes,
+            )
+        except ValidationError as exc:
+            _fail(f"El rack genera una escena inválida: {exc.errors()[0]['msg']}")
         _apply_payload(draft, payload_update, actor_id)
         AuditService.record(
             db,

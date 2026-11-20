@@ -235,6 +235,7 @@ textarea { min-height: 76px; resize: vertical; }
 .button-small { padding: 6px 9px; font-size: 12px; }
 .toolbar { display: flex; justify-content: flex-end; margin-bottom: 14px; gap: 8px; flex-wrap: wrap; }
 .form-actions { display: flex; gap: 10px; align-items: center; margin-top: 14px; flex-wrap: wrap; }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; align-items: end; }
 
 .line-editor {
   display: grid; grid-template-columns: 2fr 1fr 1fr 1.5fr auto; gap: 10px;
@@ -245,6 +246,8 @@ textarea { min-height: 76px; resize: vertical; }
 
 /* --- Tablas -------------------------------------------------------------- */
 .table-wrap { overflow-x: auto; }
+.action-cell { text-align: right; white-space: nowrap; }
+.action-cell > * { margin-left: 6px; }
 table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
 th, td { text-align: left; padding: 10px 9px; border-bottom: 1px solid var(--line); vertical-align: top; }
 th { color: var(--text-muted); font-weight: 700; background: var(--surface-alt); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }

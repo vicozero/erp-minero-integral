@@ -104,6 +104,9 @@ class UserSession(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("seg.app_user.id", ondelete="RESTRICT"), nullable=False)
     token_hash: Mapped[str] = mapped_column(Text, nullable=False)
     csrf_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    # Versión de credencial con la que se creó la sesión. Las filas anteriores
+    # a la migración quedan en NULL y se rechazan en la ruta de cookie.
+    credential_version: Mapped[int | None] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(default=func.now(), nullable=False)
     expires_at: Mapped[datetime] = mapped_column(nullable=False)
     last_seen_at: Mapped[datetime | None] = mapped_column(nullable=True)

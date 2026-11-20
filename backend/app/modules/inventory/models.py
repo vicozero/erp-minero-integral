@@ -23,6 +23,15 @@ from app.db.base import JSON_DICT, AuditMixin, Base
 from app.shared.constants import MOVEMENT_DIRECTIONS, MOVEMENT_TYPES, RESERVATION_STATUSES
 
 NULL_UUID = uuid.UUID(int=0)
+STOCK_STATES = (
+    "AVAILABLE",
+    "QUARANTINE",
+    "INSPECTION",
+    "BLOCKED",
+    "DAMAGED",
+    "IN_TRANSIT",
+    "SCRAP",
+)
 
 
 class StockBalance(AuditMixin, Base):
@@ -50,6 +59,51 @@ class StockBalance(AuditMixin, Base):
     location_ref_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("mdm.storage_location.id", ondelete="RESTRICT"), nullable=True
     )
+
+
+class StockBalanceDetail(AuditMixin, Base):
+    """Proyección detallada y transaccional de ``inv.stock_balance``.
+
+    La fuente de verdad sigue siendo el movimiento append-only. Esta tabla es
+    una proyección materializada en la misma transacción y se reconcilia con
+    el saldo agregado mediante restricciones diferidas.
+    """
+
+    __tablename__ = "stock_balance_detail"
+    __table_args__ = (
+        CheckConstraint("on_hand_qty >= 0", name="ck_sbd_on_hand_no_negativo"),
+        CheckConstraint("reserved_qty >= 0", name="ck_sbd_reserved_no_negativo"),
+        CheckConstraint("on_hand_qty >= reserved_qty", name="ck_sbd_reserved_dentro_de_existencia"),
+        CheckConstraint(
+            "stock_state IN (" + ", ".join(f"'{state}'" for state in STOCK_STATES) + ")",
+            name="ck_sbd_stock_state_valido",
+        ),
+        CheckConstraint(
+            "stock_state = 'AVAILABLE' OR reserved_qty = 0",
+            name="ck_sbd_reserved_solo_disponible",
+        ),
+        {"schema": "inv"},
+    )
+
+    stock_balance_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("inv.stock_balance.id", ondelete="RESTRICT"), nullable=False
+    )
+    warehouse_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("org.warehouse.id", ondelete="RESTRICT"), nullable=False
+    )
+    item_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("mdm.item.id", ondelete="RESTRICT"), nullable=False)
+    lot_ref_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("mdm.lot.id", ondelete="RESTRICT"), nullable=True
+    )
+    serial_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("mdm.serial.id", ondelete="RESTRICT"), nullable=True
+    )
+    stock_state: Mapped[str] = mapped_column(String(30), default="AVAILABLE", nullable=False)
+    location_ref_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("mdm.storage_location.id", ondelete="RESTRICT"), nullable=True
+    )
+    on_hand_qty: Mapped[Decimal] = mapped_column(Numeric(18, 6), default=Decimal("0"), nullable=False)
+    reserved_qty: Mapped[Decimal] = mapped_column(Numeric(18, 6), default=Decimal("0"), nullable=False)
 
 
 class StockReservation(AuditMixin, Base):

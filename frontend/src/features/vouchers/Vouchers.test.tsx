@@ -147,12 +147,14 @@ describe('Vales de almacén', () => {
     fireEvent.click(screen.getByTestId('voucher-create'));
 
     await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
-    expect(create.mock.calls[0][0]).toMatchObject({
+    const payload = create.mock.calls[0][0];
+    expect(payload).toMatchObject({
       requisition_id: 'req-1',
       mode: 'DRAFT',
       department_id: 'dep-1',
       issue_date: expect.any(String),
     });
+    expect(payload.idempotency_key).toBe(`vale:req-1:${payload.issue_date}`);
     expect(await screen.findByText(/Vale VA-000166 generado/)).toBeInTheDocument();
     expect(screen.getByTestId('voucher-pdf-VA-000166').getAttribute('href')).toContain(
       '/api/v1/documents/vouchers/va-1/pdf',

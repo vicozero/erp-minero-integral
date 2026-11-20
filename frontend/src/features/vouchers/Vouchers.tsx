@@ -19,8 +19,9 @@ function localDate(): string {
   return new Date(now.getTime() - offset).toISOString().slice(0, 10);
 }
 
-function idempotencyKey(prefix: string): string {
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+/** La clave debe ser estable por intención: un reintento no crea otro vale. */
+function idempotencyKey(prefix: string, requisitionId: string, issueDate: string): string {
+  return `${prefix}:${requisitionId}:${issueDate}`;
 }
 
 function formatDate(value: string | null): string {
@@ -105,7 +106,7 @@ export function Vouchers() {
         area: area || null,
         usage_equipment: usageEquipment || null,
         issue_date: issueDate,
-        idempotency_key: idempotencyKey('vale'),
+        idempotency_key: idempotencyKey('vale', requisitionId, issueDate),
       });
       setNotice(`Vale ${created.document_no} generado. No se crearon movimientos de inventario.`);
       setRequisitionId('');

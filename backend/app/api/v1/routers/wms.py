@@ -5,7 +5,6 @@ from decimal import Decimal
 
 from fastapi import APIRouter, Depends, File, Form, Query, Response, UploadFile
 from fastapi.responses import FileResponse
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.v1.deps import require_permission
@@ -39,21 +38,13 @@ from app.modules.master_data.schemas import (
     LocationOut,
     PhotoOut,
 )
-from app.modules.organization.models import Warehouse
 
 router = APIRouter(prefix="/wms", tags=["WMS · Catálogo y ubicaciones"])
 
 
 def _allowed_warehouses(db: Session, actor: AppUser) -> list[uuid.UUID] | None:
-    """None significa acceso total; lista vacía, ningún almacén permitido."""
-    if IdentityService.is_admin(db, actor.id):
-        return None
-    unit_ids = IdentityService.mining_unit_ids(db, actor.id)
-    if not unit_ids:
-        return []
-    return list(
-        db.execute(select(Warehouse.id).where(Warehouse.mining_unit_id.in_(unit_ids))).scalars()
-    )
+    """Adaptador local: la regla vive en ``IdentityService`` y es compartida."""
+    return IdentityService.allowed_warehouse_ids(db, actor.id)
 
 
 @router.get("/families", response_model=list[FamilyOut])

@@ -9,6 +9,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.modules.audit.service import AuditService
 from app.modules.costing.models import CostLayer
 from app.modules.documentation.models import DocumentRegistry
@@ -30,6 +31,13 @@ from app.shared.numbering import attach_entity, next_document_number, record_doc
 
 class PurchasingError(HTTPException):
     pass
+
+
+class SelfApprovalDenied(PurchasingError):
+    """Rechazo de autoaprobación; exige confirmar el evento de auditoría."""
+
+    def __init__(self, detail: str) -> None:
+        super().__init__(status_code=status.HTTP_403_FORBIDDEN, detail=detail)
 
 
 def _fail(detail: str, code: int = status.HTTP_409_CONFLICT) -> NoReturn:
@@ -177,6 +185,20 @@ class PurchasingService:
             _fail("Orden de compra inexistente.", status.HTTP_404_NOT_FOUND)
         if po.status != "DRAFT":
             _fail("Solo se puede aprobar una orden en borrador.")
+        if actor_id == po.buyer_id and not settings.ALLOW_PURCHASE_ORDER_SELF_APPROVAL:
+            AuditService.record(
+                db,
+                action="PURCHASE_ORDER_SELF_APPROVAL_DENIED",
+                entity_type="PurchaseOrder",
+                entity_id=po.id,
+                actor_id=actor_id,
+                before={"status": po.status},
+                after={"status": po.status},
+                detail="El comprador que creó la orden no puede aprobarla.",
+            )
+            raise SelfApprovalDenied(
+                "El comprador que creó la orden no puede aprobarla; se requiere otro aprobador."
+            )
         po.status = "APPROVED"
         po.approved_at = datetime.now(timezone.utc)
         registry = db.get(DocumentRegistry, po.document_registry_id)

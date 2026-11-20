@@ -1,0 +1,264 @@
+{
+  "portal": "http://127.0.0.1:8080",
+  "base": "erp_minero_test",
+  "resoluciones": [
+    {
+      "viewport_solicitado": {
+        "ancho": 1920,
+        "alto": 1080
+      },
+      "viewport_medido": {
+        "w": 1920,
+        "h": 1080,
+        "dpr": 1,
+        "path": "/"
+      },
+      "paginas": [
+        {
+          "ruta": "/login",
+          "estado": {
+            "path": "/",
+            "texto": 2299,
+            "muestra": "EM\nERP MINERO\nINTEGRAL · LOCAL\nOPERACIÓN\nDashboard\nRequisiciones\nAutorizaciones\nAlmacén\nAlmacén Virtual 2D/3D\nVales de almacén\nSemáforo SLA\n",
+            "desborde": false,
+            "sesion": 200
+          },
+          "captura": "docs\\evidencia_lote8\\1920x1080_login.png",
+          "errores": []
+        },
+        {
+          "ruta": "/",
+          "estado": {
+            "path": "/",
+            "texto": 2299,
+            "muestra": "EM\nERP MINERO\nINTEGRAL · LOCAL\nOPERACIÓN\nDashboard\nRequisiciones\nAutorizaciones\nAlmacén\nAlmacén Virtual 2D/3D\nVales de almacén\nSemáforo SLA\n",
+            "desborde": false,
+            "sesion": 200
+          },
+          "captura": "docs\\evidencia_lote8\\1920x1080_dashboard.png",
+          "errores": []
+        },
+        {
+          "ruta": "/requisiciones",
+          "estado": {
+            "path": "/requisiciones",
+            "texto": 1091,
+            "muestra": "EM\nERP MINERO\nINTEGRAL · LOCAL\nOPERACIÓN\nDashboard\nRequisiciones\nAutorizaciones\nAlmacén\nAlmacén Virtual 2D/3D\nVales de almacén\nSemáforo SLA\n",
+            "desborde": false,
+            "sesion": 200
+          },
+          "captura": "docs\\evidencia_lote8\\1920x1080_requisiciones.png",
+          "errores": []
+        },
+        {
+          "ruta": "/almacen",
+          "estado": {
+            "path": "/almacen",
+            "texto": 1064,
+            "muestra": "EM\nERP MINERO\nINTEGRAL · LOCAL\nOPERACIÓN\nDashboard\nRequisiciones\nAutorizaciones\nAlmacén\nAlmacén Virtual 2D/3D\nVales de almacén\nSemáforo SLA\n",
+            "desborde": false,
+            "sesion": 200
+          },
+          "captura": "docs\\evidencia_lote8\\1920x1080_almacen.png",
+          "errores": []
+        },
+        {
+          "ruta": "/compras",
+          "estado": {
+            "path": "/compras",
+            "texto": 860,
+            "muestra": "EM\nERP MINERO\nINTEGRAL · LOCAL\nOPERACIÓN\nDashboard\nRequisiciones\nAutorizaciones\nAlmacén\nAlmacén Virtual 2D/3D\nVales de almacén\nSemáforo SLA\n",
+            "desborde": false,
+            "sesion": 200
+          },
+          "captura": "docs\\evidencia_lote8\\1920x1080_compras.png",
+          "errores": []
+        },
+        {
+          "ruta": "/ubicaciones",
+          "estado": {
+            "path": "/ubicaciones",
+            "texto": 2516,
+            "muestra": "EM\nERP MINERO\nINTEGRAL · LOCAL\nOPERACIÓN\nDashboard\nRequisiciones\nAutorizaciones\nAlmacén\nAlmacén Virtual 2D/3D\nVales de almacén\nSemáforo SLA\n",
+            "desborde": false,
+            "sesion": 200
+          },
+          "captura": "docs\\evidencia_lote8\\1920x1080_ubicaciones.png",
+          "errores": []
+        }
+      ]
+    },
+    {
+      "viewport_solicitado": {
+        "ancho": 1366,
+        "alto": 768
+      },
+      "viewport_medido": {
+        "w": 1366,
+        "h": 768,
+        "dpr": 1,
+        "path": "/"
+      },
+      "paginas": [
+        {
+          "ruta": "/login",
+          "estado": {
+            "path": "/",
+            "texto": 2299,
+            "muestra": "EM\nERP MINERO\nINTEGRAL · LOCAL\nOPERACIÓN\nDashboard\nRequisiciones\nAutorizaciones\nAlmacén\nAlmacén Virtual 2D/3D\nVales de almacén\nSemáforo SLA\n",
+            "desborde": false,
+            "sesion": 200
+          },
+          "captura": "docs\\evidencia_lote8\\1366x768_login.png",
+          "errores": []
+        },
+        {
+          "ruta": "/",
+          "estado": {
+            "path": "/",
+            "texto": 2299,
+            "muestra": "EM\nERP MINERO\nINTEGRAL · LOCAL\nOPERACIÓN\nDashboard\nRequisiciones\nAutorizaciones\nAlmacén\nAlmacén Virtual 2D/3D\nVales de almacén\nSemáforo SLA\n",
+            "desborde": false,
+            "sesion": 200
+          },
+          "captura": "docs\\evidencia_lote8\\1366x768_dashboard.png",
+          "errores": []
+        },
+        {
+          "ruta": "/requisiciones",
+          "estado": {
+            "path": "/requisiciones",
+            "texto": 1091,
+            "muestra": "EM\nERP MINERO\nINTEGRAL · LOCAL\nOPERACIÓN\nDashboard\nRequisiciones\nAutorizaciones\nAlmacén\nAlmacén Virtual 2D/3D\nVales de almacén\nSemáforo SLA\n",
+            "desborde": false,
+            "sesion": 200
+          },
+          "captura": "docs\\evidencia_lote8\\1366x768_requisiciones.png",
+          "errores": []
+        },
+        {
+          "ruta": "/almacen",
+          "estado": {
+            "path": "/almacen",
+            "texto": 1064,
+            "muestra": "EM\nERP MINERO\nINTEGRAL · LOCAL\nOPERACIÓN\nDashboard\nRequisiciones\nAutorizaciones\nAlmacén\nAlmacén Virtual 2D/3D\nVales de almacén\nSemáforo SLA\n",
+            "desborde": false,
+            "sesion": 200
+          },
+          "captura": "docs\\evidencia_lote8\\1366x768_almacen.png",
+          "errores": []
+        },
+        {
+          "ruta": "/compras",
+          "estado": {
+            "path": "/compras",
+            "texto": 860,
+            "muestra": "EM\nERP MINERO\nINTEGRAL · LOCAL\nOPERACIÓN\nDashboard\nRequisiciones\nAutorizaciones\nAlmacén\nAlmacén Virtual 2D/3D\nVales de almacén\nSemáforo SLA\n",
+            "desborde": false,
+            "sesion": 200
+          },
+          "captura": "docs\\evidencia_lote8\\1366x768_compras.png",
+          "errores": []
+        },
+        {
+          "ruta": "/ubicaciones",
+          "estado": {
+            "path": "/ubicaciones",
+            "texto": 2516,
+            "muestra": "EM\nERP MINERO\nINTEGRAL · LOCAL\nOPERACIÓN\nDashboard\nRequisiciones\nAutorizaciones\nAlmacén\nAlmacén Virtual 2D/3D\nVales de almacén\nSemáforo SLA\n",
+            "desborde": false,
+            "sesion": 200
+          },
+          "captura": "docs\\evidencia_lote8\\1366x768_ubicaciones.png",
+          "errores": []
+        }
+      ]
+    },
+    {
+      "viewport_solicitado": {
+        "ancho": 1280,
+        "alto": 720
+      },
+      "viewport_medido": {
+        "w": 1280,
+        "h": 720,
+        "dpr": 1,
+        "path": "/"
+      },
+      "paginas": [
+        {
+          "ruta": "/login",
+          "estado": {
+            "path": "/",
+            "texto": 2299,
+            "muestra": "EM\nERP MINERO\nINTEGRAL · LOCAL\nOPERACIÓN\nDashboard\nRequisiciones\nAutorizaciones\nAlmacén\nAlmacén Virtual 2D/3D\nVales de almacén\nSemáforo SLA\n",
+            "desborde": false,
+            "sesion": 200
+          },
+          "captura": "docs\\evidencia_lote8\\1280x720_login.png",
+          "errores": []
+        },
+        {
+          "ruta": "/",
+          "estado": {
+            "path": "/",
+            "texto": 2299,
+            "muestra": "EM\nERP MINERO\nINTEGRAL · LOCAL\nOPERACIÓN\nDashboard\nRequisiciones\nAutorizaciones\nAlmacén\nAlmacén Virtual 2D/3D\nVales de almacén\nSemáforo SLA\n",
+            "desborde": false,
+            "sesion": 200
+          },
+          "captura": "docs\\evidencia_lote8\\1280x720_dashboard.png",
+          "errores": []
+        },
+        {
+          "ruta": "/requisiciones",
+          "estado": {
+            "path": "/requisiciones",
+            "texto": 1091,
+            "muestra": "EM\nERP MINERO\nINTEGRAL · LOCAL\nOPERACIÓN\nDashboard\nRequisiciones\nAutorizaciones\nAlmacén\nAlmacén Virtual 2D/3D\nVales de almacén\nSemáforo SLA\n",
+            "desborde": false,
+            "sesion": 200
+          },
+          "captura": "docs\\evidencia_lote8\\1280x720_requisiciones.png",
+          "errores": []
+        },
+        {
+          "ruta": "/almacen",
+          "estado": {
+            "path": "/almacen",
+            "texto": 1064,
+            "muestra": "EM\nERP MINERO\nINTEGRAL · LOCAL\nOPERACIÓN\nDashboard\nRequisiciones\nAutorizaciones\nAlmacén\nAlmacén Virtual 2D/3D\nVales de almacén\nSemáforo SLA\n",
+            "desborde": false,
+            "sesion": 200
+          },
+          "captura": "docs\\evidencia_lote8\\1280x720_almacen.png",
+          "errores": []
+        },
+        {
+          "ruta": "/compras",
+          "estado": {
+            "path": "/compras",
+            "texto": 860,
+            "muestra": "EM\nERP MINERO\nINTEGRAL · LOCAL\nOPERACIÓN\nDashboard\nRequisiciones\nAutorizaciones\nAlmacén\nAlmacén Virtual 2D/3D\nVales de almacén\nSemáforo SLA\n",
+            "desborde": false,
+            "sesion": 200
+          },
+          "captura": "docs\\evidencia_lote8\\1280x720_compras.png",
+          "errores": []
+        },
+        {
+          "ruta": "/ubicaciones",
+          "estado": {
+            "path": "/ubicaciones",
+            "texto": 2516,
+            "muestra": "EM\nERP MINERO\nINTEGRAL · LOCAL\nOPERACIÓN\nDashboard\nRequisiciones\nAutorizaciones\nAlmacén\nAlmacén Virtual 2D/3D\nVales de almacén\nSemáforo SLA\n",
+            "desborde": false,
+            "sesion": 200
+          },
+          "captura": "docs\\evidencia_lote8\\1280x720_ubicaciones.png",
+          "errores": []
+        }
+      ]
+    }
+  ]
+}

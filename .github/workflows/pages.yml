@@ -1,13 +1,11 @@
-# Preparación de GitHub Pages: NO publica nada por sí solo.
+# GitHub Pages: demo estática del frontend.
 #
-# Antes de ejecutar este flujo se requiere, en este orden:
-#   1. Autorizar la exposición pública (Puerta G7 del plan de despliegue).
-#   2. Hacer público el repositorio (plan Free) o contratar un plan con Pages privado.
-#   3. Configurar Settings -> Pages -> Source = GitHub Actions.
-#   4. Definir VITE_API_URL con un backend HTTPS autorizado. Pages no sirve /api/v1.
-#
-# El flujo es manual a propósito: mientras no se ejecute, no hay sitio publicado.
-name: Pages — preparado sin publicar
+# Estado: repo público (plan Free), Pages con source = GitHub Actions y sitio
+# publicado en https://vicozero.github.io/erp-minero-integral/.
+# El flujo sigue siendo manual: publicar una versión nueva requiere ejecutarlo
+# explícitamente. Pages no sirve /api/v1; sin VITE_API_URL el sitio es una demo
+# sin datos y el acceso no funciona.
+name: GitHub Pages — demo estática
 
 on:
   workflow_dispatch:
@@ -48,7 +46,7 @@ jobs:
         run: npm run build
         env:
           VITE_PUBLIC_BASE: /erp-minero-integral/
-          # VITE_API_URL: https://backend-autorizado.example  # pendiente de definir
+          # VITE_API_URL: https://backend-autorizado.example  # sólo con backend HTTPS autorizado
 
       - name: Verificar ruta base del artefacto
         run: grep -q '/erp-minero-integral/assets/' dist/index.html
@@ -62,7 +60,7 @@ jobs:
           path: frontend/dist
 
   deploy:
-    name: Publicar artefacto (requiere Pages habilitado)
+    name: Publicar artefacto en GitHub Pages
     needs: build
     runs-on: ubuntu-latest
     environment:

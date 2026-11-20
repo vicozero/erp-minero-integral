@@ -3,8 +3,8 @@
 **Fecha:** 20/11/2026  
 **Repositorio:** `E:\ERP_MINERO`  
 **HEAD auditado:** `8421472619a0c62f460b6d063e14a4f850186a72` (`8421472`)  
-**HEAD publicado:** `1ccedc7` en `vicozero/erp-minero-integral` (privado)  
-**Estado:** corregido tras reauditoría, revalidado localmente con datos sintéticos y publicado como código fuente en un repositorio privado. **No se declara producción.**  
+**HEAD publicado:** `1ccedc7` en `vicozero/erp-minero-integral`; posteriormente el repo se hizo público y se publicó la demo estática (sección 11)<br>
+**Estado:** corregido tras reauditoría, revalidado localmente con datos sintéticos y publicado como código fuente. **No se declara producción.**<br>
 **Alcance:** autenticación, sesiones, RBAC, inventario, autorización de compras, proxy local, precisión del informe y regresiones.
 
 ---
@@ -202,20 +202,20 @@ Se capturaron seis rutas por resolución: `/login`, `/`, `/requisiciones`, `/alm
 
 La reauditoría encontró defectos altos reales; todos los hallazgos de código fueron corregidos o precisados, y el informe quedó ajustado a la evidencia verificable. La suite backend (175), la suite frontend (63), el tipo-check, el build, la migración `empty -> head` y la captura visual final pasaron con el código corregido. El workflow `.github/workflows/ci.yml` reproduce las verificaciones de código en GitHub Actions y terminó en verde.
 
-**No se declaró terminada la puesta en producción.** Quedan abiertos y reportados la integridad física de `E:`, la migración/backfill de `erp_minero_dev`, la rotación de credenciales, la capa de repositorios y las decisiones empresariales de aprobación. El código fuente sí se versionó y publicó en `vicozero/erp-minero-integral` (privado). No se publicó GitHub Pages ni se expuso servicio alguno.
+**No se declaró terminada la puesta en producción.** Quedan abiertos y reportados la integridad física de `E:`, la migración/backfill de `erp_minero_dev`, la rotación de credenciales, la capa de repositorios y las decisiones empresariales de aprobación. El código fuente sí se versionó y publicó en `vicozero/erp-minero-integral`; en ese cierre el repo era privado y Pages no estaba publicado. La publicación posterior de la demo estática se documenta en la sección 11. No se expuso ningún servicio de backend.
 
 ---
 
-## 11. GitHub Pages (preparado sin publicar)
+## 11. GitHub Pages — demo estática publicada
 
-A solicitud del usuario se evaluó el despliegue en GitHub Pages y se eligió **preparar sin publicar**. La cuenta es plan **Free** y el repo es privado.
+Tras la evaluación inicial se eligió preparar sin publicar, pero el usuario confirmó después la **publicación de la demo**. La cuenta es plan **Free**, por lo que el repositorio se hizo **público** con autorización explícita (Puerta G9 del plan).
 
-- Se añadió `VITE_PUBLIC_BASE` a `frontend/vite.config.ts` (por defecto `/`; `/erp-minero-integral/` para un sitio de proyecto). Sin este ajuste, los assets se buscarían en la raíz del dominio y la página quedaría en blanco.
-- Se creó `.github/workflows/pages.yml`, con disparo únicamente manual (`workflow_dispatch`). No se ejecutó, no activa Pages y no se dispara con `push`.
-- No se modificó la configuración de Pages del repositorio (`has_pages: false`); no hay URL publicada.
-- Con plan Free, Pages exige repositorio público y el sitio queda accesible en Internet. Hacer público el repo requiere una autorización nueva (Puerta G9 del plan).
-- Pages no puede servir el backend: no existirían `/api/v1`, `/health`, `/docs` ni la autenticación por cookie. El cliente mantiene rutas relativas, por lo que sin `VITE_API_URL` apuntaría a `vicozero.github.io/api/v1`. El resultado, si se publicara hoy, sería una demo estática sin datos.
+- Sitio publicado: **`https://vicozero.github.io/erp-minero-integral/`**. Se verificó HTTP 200 en el HTML y en el asset JS; las rutas de los assets usan `/erp-minero-integral/assets/...`.
+- Se añadió `VITE_PUBLIC_BASE` a `frontend/vite.config.ts` (por defecto `/`; `/erp-minero-integral/` para el sitio de proyecto). Sin este ajuste, los assets se buscarían en la raíz del dominio y la página quedaría en blanco.
+- `.github/workflows/pages.yml` mantiene disparo **manual** (`workflow_dispatch`). Se ejecutó una vez: `44839529279`, **success** en compilación y despliegue. No se dispara con `push`.
+- Settings → Pages quedó configurado con `build_type: workflow` (source *GitHub Actions*) y HTTPS forzado.
 - Se agregaron 2 pruebas de la ruta base (`frontend/src/test/viteConfig.test.ts`). La verificación local quedó en **65/65 pruebas frontend** (17 archivos), con `tsc` y build en verde para ambas bases (`/` y `/erp-minero-integral/`).
-- El CI se volvió a ejecutar con este cambio (`44834165928`) y terminó en **success** en backend y frontend. El workflow de Pages no se ejecutó.
+- El CI se volvió a ejecutar con este cambio (`44834165928`) y terminó en **success** en backend y frontend.
+- Pages no puede servir el backend: no existen `/api/v1`, `/health`, `/docs` ni la autenticación por cookie. El cliente mantiene rutas relativas, por lo que sin `VITE_API_URL` apuntaría a `vicozero.github.io/api/v1`. El sitio publicado es una **demo estática sin datos**: el formulario de acceso no funciona.
 
-No se expuso servicio, no se conectó CONTPAQi ni GMAO y no se rotó ninguna credencial.
+No se expuso ningún servicio de backend, no se conectó CONTPAQi ni GMAO y no se rotó ninguna credencial. No se declaró producción.

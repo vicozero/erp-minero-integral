@@ -140,7 +140,8 @@ La reauditoría del documento encontró 20 imprecisiones u omisiones. Estado al 
 | Captura visual repetida con el código final | **18/18** páginas, **18/18** con `/api/v1/auth/me` → 200, 0 desbordes, 0 errores |
 | `git diff --check` | OK; sólo avisos de normalización LF/CRLF |
 | Escaneo de secretos en el diff | 0 coincidencias reales |
-| HEAD / commit / push | Publicado: `1ccedc7` en `vicozero/erp-minero-integral` (privado); HEAD auditado `8421472` |
+| GitHub Actions `CI` | **success** en backend y frontend (`44828602650`); Ruff, Mypy, 175 pruebas backend, TypeScript, 63 pruebas frontend y build |
+| HEAD / commit / push | Publicado en `vicozero/erp-minero-integral` (privado); HEAD auditado original `8421472` |
 
 El servicio local `postgresql-x64-17` está `Stopped` y `Start-Service` devolvió `No se puede abrir el servicio ... en el equipo '.'`. Por eso la suite completa y la verificación `empty -> head` se ejecutaron en clústeres PostgreSQL 17 efímeros, en `127.0.0.1`, con codificación UTF8, rol no superusuario y datos sintéticos. Los clústeres se detuvieron y eliminaron.
 
@@ -199,6 +200,6 @@ Se capturaron seis rutas por resolución: `/login`, `/`, `/requisiciones`, `/alm
 
 ## 10. Conclusión
 
-La reauditoría encontró defectos altos reales; todos los hallazgos de código fueron corregidos o precisados, y el informe quedó ajustado a la evidencia verificable. La suite backend (175), la suite frontend (63), el tipo-check, el build, la migración `empty -> head` y la captura visual final pasaron con el código corregido.
+La reauditoría encontró defectos altos reales; todos los hallazgos de código fueron corregidos o precisados, y el informe quedó ajustado a la evidencia verificable. La suite backend (175), la suite frontend (63), el tipo-check, el build, la migración `empty -> head` y la captura visual final pasaron con el código corregido. El workflow `.github/workflows/ci.yml` reproduce las verificaciones de código en GitHub Actions y terminó en verde.
 
-**No se declaró terminada la puesta en producción.** Quedan abiertos y reportados la integridad física de `E:`, la migración/backfill de `erp_minero_dev`, la rotación de credenciales, la capa de repositorios y las decisiones empresariales de aprobación. El código fuente sí se versionó y publicó en `vicozero/erp-minero-integral` (privado), con HEAD `1ccedc7`.
+**No se declaró terminada la puesta en producción.** Quedan abiertos y reportados la integridad física de `E:`, la migración/backfill de `erp_minero_dev`, la rotación de credenciales, la capa de repositorios y las decisiones empresariales de aprobación. El código fuente sí se versionó y publicó en `vicozero/erp-minero-integral` (privado). No se publicó GitHub Pages ni se expuso servicio alguno.

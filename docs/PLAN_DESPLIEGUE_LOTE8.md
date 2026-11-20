@@ -111,6 +111,8 @@ python C:\Users\Dell\AppData\Local\Temp\opencode\run_visual_ephemeral.py
 
 Criterios de aceptación: 175 pruebas backend, 63 frontend, migración `empty -> head` en `e4f5a6b7c8d9`, 18/18 capturas con sesión 200, 0 secretos reales en el diff.
 
+El repositorio incluye `.github/workflows/ci.yml`, que repite en GitHub Actions el bloqueo de backend (Ruff, Mypy y Pytest sobre PostgreSQL 17 efímero) y de frontend (TypeScript, Vitest y build). Las versiones de dependencias usadas por CI se fijan en `.github/ci-constraints.txt`. El workflow no publica la aplicación ni expone servicios: usa sólo datos sintéticos y `127.0.0.1` dentro del runner.
+
 ---
 
 ## 6. Despliegue local temporal

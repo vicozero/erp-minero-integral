@@ -1,9 +1,10 @@
 # Plan de despliegue — Lote 8
 
-**Estado:** propuesto, **no ejecutado**.  
+**Estado:** propuesto; **sólo G1 ejecutado** (commit y push). Despliegue operativo no ejecutado.  
 **Fecha:** 20/11/2026  
-**HEAD actual:** `8421472619a0c62f460b6d063e14a4f850186a72`  
-**Cambios:** todos en el árbol de trabajo; sin commit ni push.  
+**HEAD auditado:** `8421472619a0c62f460b6d063e14a4f850186a72`  
+**HEAD publicado:** `1ccedc7` en `vicozero/erp-minero-integral` (privado)  
+**Cambios:** código fuente ya versionado y publicado; despliegue operativo aún no ejecutado.  
 **Principio:** ningún paso de este plan se ejecuta sin la autorización indicada en la Puerta 0.
 
 Este documento es el plan que pediste que preparara. No modifica infraestructura, no expone servicios, no rota credenciales y no promueve nada a producción.
@@ -14,7 +15,7 @@ Este documento es el plan que pediste que preparara. No modifica infraestructura
 
 | # | Requiere autorización para | Por qué es bloqueante |
 |---|---|---|
-| G1 | Hacer commit y push de los cambios | Sin artefacto versionado no hay despliegue reproducible; además estaba prohibido en la tarea original |
+| G1 | Hacer commit y push de los cambios | **Ejecutado con autorización**: `7d7e267` y `1ccedc7` en repo privado |
 | G2 | Ventana de mantenimiento sobre `E:` | `Warning` / `Full Repair Needed` con `PGDATA` encima |
 | G3 | Reparación/traslado de `PGDATA` | No se puede ejecutar `CHKDSK /F`, formatear ni mover datos sin ticket |
 | G4 | Backfill de los 3 saldos heredados | No se aceptan ajustes automáticos de inventario sin decisión |
@@ -38,7 +39,7 @@ Este documento es el plan que pediste que preparara. No modifica infraestructura
    - `Corrige reauditoría del Lote 8 y refuerza sesiones`
    - `Agrega versión de credencial a sesiones`
 4. Crear tag local de entrega, por ejemplo `v0.1.0-lote8`.
-5. Push sólo si la autorización **G1** lo incluye explícitamente.
+5. Push ejecutado tras autorización **G1**: `origin/main` apunta a `https://github.com/vicozero/erp-minero-integral.git`.
 
 ---
 
@@ -167,4 +168,4 @@ No existe `downgrade` automático permitido. La reversión segura es:
 
 ---
 
-**Nota final:** este plan no se ejecutó. Está listo para ejecutarse por fases en cuanto se concedan las autorizaciones de la Puerta 0.
+**Nota final:** el código fuente ya se publicó, pero el despliegue operativo de este plan no se ejecutó. Queda listo para ejecutarse por fases en cuanto se concedan las autorizaciones restantes de la Puerta 0.

@@ -2,8 +2,9 @@
 
 **Fecha:** 20/11/2026  
 **Repositorio:** `E:\ERP_MINERO`  
-**HEAD sin cambios:** `8421472619a0c62f460b6d063e14a4f850186a72` (`8421472`)  
-**Estado:** corregido tras reauditoría y revalidado localmente con datos sintéticos. **No se declara producción, no se hizo commit ni push.**  
+**HEAD auditado:** `8421472619a0c62f460b6d063e14a4f850186a72` (`8421472`)  
+**HEAD publicado:** `1ccedc7` en `vicozero/erp-minero-integral` (privado)  
+**Estado:** corregido tras reauditoría, revalidado localmente con datos sintéticos y publicado como código fuente en un repositorio privado. **No se declara producción.**  
 **Alcance:** autenticación, sesiones, RBAC, inventario, autorización de compras, proxy local, precisión del informe y regresiones.
 
 ---
@@ -139,7 +140,7 @@ La reauditoría del documento encontró 20 imprecisiones u omisiones. Estado al 
 | Captura visual repetida con el código final | **18/18** páginas, **18/18** con `/api/v1/auth/me` → 200, 0 desbordes, 0 errores |
 | `git diff --check` | OK; sólo avisos de normalización LF/CRLF |
 | Escaneo de secretos en el diff | 0 coincidencias reales |
-| HEAD / commit / push | Sin cambios: `8421472619a0c62f460b6d063e14a4f850186a72` |
+| HEAD / commit / push | Publicado: `1ccedc7` en `vicozero/erp-minero-integral` (privado); HEAD auditado `8421472` |
 
 El servicio local `postgresql-x64-17` está `Stopped` y `Start-Service` devolvió `No se puede abrir el servicio ... en el equipo '.'`. Por eso la suite completa y la verificación `empty -> head` se ejecutaron en clústeres PostgreSQL 17 efímeros, en `127.0.0.1`, con codificación UTF8, rol no superusuario y datos sintéticos. Los clústeres se detuvieron y eliminaron.
 
@@ -200,4 +201,4 @@ Se capturaron seis rutas por resolución: `/login`, `/`, `/requisiciones`, `/alm
 
 La reauditoría encontró defectos altos reales; todos los hallazgos de código fueron corregidos o precisados, y el informe quedó ajustado a la evidencia verificable. La suite backend (175), la suite frontend (63), el tipo-check, el build, la migración `empty -> head` y la captura visual final pasaron con el código corregido.
 
-**No se declaró terminada la puesta en producción.** Quedan abiertos y reportados la integridad física de `E:`, la migración/backfill de `erp_minero_dev`, la rotación de credenciales, la capa de repositorios y las decisiones empresariales de aprobación. No hay commit ni push; HEAD permanece en `8421472619a0c62f460b6d063e14a4f850186a72`.
+**No se declaró terminada la puesta en producción.** Quedan abiertos y reportados la integridad física de `E:`, la migración/backfill de `erp_minero_dev`, la rotación de credenciales, la capa de repositorios y las decisiones empresariales de aprobación. El código fuente sí se versionó y publicó en `vicozero/erp-minero-integral` (privado), con HEAD `1ccedc7`.

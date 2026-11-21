@@ -218,4 +218,10 @@ Tras la evaluación inicial se eligió preparar sin publicar, pero el usuario co
 - El CI se volvió a ejecutar con este cambio (`44834165928`) y terminó en **success** en backend y frontend.
 - Pages no puede servir el backend: no existen `/api/v1`, `/health`, `/docs` ni la autenticación por cookie. El cliente mantiene rutas relativas, por lo que sin `VITE_API_URL` apuntaría a `vicozero.github.io/api/v1`. El sitio publicado es una **demo estática sin datos**: el formulario de acceso no funciona.
 
-No se expuso ningún servicio de backend, no se conectó CONTPAQi ni GMAO y no se rotó ninguna credencial. No se declaró producción.
+No se expuso ningún servicio de backend en la publicación de Pages, no se conectó CONTPAQi ni GMAO y no se rotó ninguna credencial. No se declaró producción.
+
+---
+
+## 12. Demo con acceso por Internet
+
+A solicitud del usuario se habilitó además una demo con login, accesible en `https://unasked-edwardo-unclerkly.ngrok-free.dev`. Es un túnel HTTPS de ngrok hacia `scripts/portal_proxy.py` en `127.0.0.1:8080`, con FastAPI en `127.0.0.1:8000` y una base PostgreSQL efímera con datos sintéticos. Verificación: portal 200, `/health` ok, login de `demo.admin` 200 y `/api/v1/auth/me` con cookie de sesión. No se expuso PostgreSQL ni el puerto 8000, y no se tocó `erp_minero_dev`. Detalles y credenciales en `docs/ACCESO_INTERNET_DEMO.md`.

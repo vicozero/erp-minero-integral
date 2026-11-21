@@ -21,7 +21,7 @@ Este documento es el plan que pediste que preparara. No modifica infraestructura
 | G4 | Backfill de los 3 saldos heredados | No se aceptan ajustes automáticos de inventario sin decisión |
 | G5 | Aplicar migraciones a `erp_minero_dev` | Base real; ahora está en `a2b3c4d5e6f7` |
 | G6 | Rotar la credencial de desarrollo | No se imprimió ni rotó ninguna credencial |
-| G7 | Exponer el portal fuera de `127.0.0.1` | Está prohibido publicar puertos o abrir firewall sin autorización |
+| G7 | Exponer el portal fuera de `127.0.0.1` | **Ejecutado con autorización sólo para la demo**: túnel HTTPS de ngrok al proxy en `127.0.0.1:8080`, sin exponer PostgreSQL ni el puerto 8000 |
 | G8 | Declarar producción | No se hizo y sigue fuera del alcance aprobado |
 | G9 | Hacer público el repo o publicar un sitio en GitHub Pages | **Ejecutado con autorización**: repo público y demo estática publicada en `vicozero.github.io/erp-minero-integral`; el backend NO se expuso |
 
@@ -188,8 +188,21 @@ Se agregaron 2 pruebas de la ruta base (`frontend/src/test/viteConfig.test.ts`).
 
 **Limitación funcional:** GitHub Pages sirve archivos estáticos; no ejecuta FastAPI, PostgreSQL ni el proxy inverso. No existen `/api/v1`, `/health`, `/docs` ni autenticación. El sitio publicado es una **demo estática sin datos**: el formulario de acceso no funciona. Para un despliegue real hace falta un backend accesible por HTTPS con CORS y cookies `SameSite=None; Secure`, además de la base de datos; eso sigue supeditado a G7/G8.
 
-**Siguiente paso:** configurar `VITE_API_URL` con el backend autorizado y volver a ejecutar el workflow manual. No se declaró producción ni se expuso ningún servicio de backend.
+**Siguiente paso:** configurar `VITE_API_URL` con el backend autorizado y volver a ejecutar el workflow manual. No se declaró producción. Para acceso con login se habilitó además una demo por túnel HTTPS, documentada en `docs/ACCESO_INTERNET_DEMO.md`.
 
 ---
 
-**Nota final:** el código fuente está publicado en un repositorio público y la demo estática está desplegada en GitHub Pages. El despliegue operativo del plan **no** se ejecutó: siguen pendientes las puertas G2–G8 (disco `E:`, backfill y migraciones, credencial, FQDN, exposición controlada y decisión de producción).
+## 11. Demo con acceso por Internet
+
+Con autorización del usuario (Puerta G7) se levantó una demo temporal:
+
+- URL pública: `https://unasked-edwardo-unclerkly.ngrok-free.dev` (túnel ngrok HTTPS al proxy del portal en `127.0.0.1:8080`).
+- API FastAPI en `127.0.0.1:8000`, base PostgreSQL efímera `erp_internet_demo` con datos sintéticos, migrada a `head` y sembrada.
+- Verificado: portal 200, `/health` ok, login de `demo.admin` 200 y `/api/v1/auth/me` con cookie de sesión.
+- No se expuso PostgreSQL ni el puerto 8000; no se tocó `erp_minero_dev`.
+
+Detalles, credenciales y limitaciones en `docs/ACCESO_INTERNET_DEMO.md`.
+
+---
+
+**Nota final:** el código fuente está publicado en un repositorio público, la demo estática está en GitHub Pages y hay una demo con login accesible por túnel HTTPS. El despliegue operativo del plan **no** se ejecutó: siguen pendientes las puertas G2–G6 y G8 (disco `E:`, backfill y migraciones, credencial y decisión de producción).

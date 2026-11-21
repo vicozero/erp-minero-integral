@@ -225,3 +225,18 @@ No se expuso ningún servicio de backend en la publicación de Pages, no se cone
 ## 12. Demo con acceso por Internet
 
 A solicitud del usuario se habilitó además una demo con login, accesible en `https://unasked-edwardo-unclerkly.ngrok-free.dev`. Es un túnel HTTPS de ngrok hacia `scripts/portal_proxy.py` en `127.0.0.1:8080`, con FastAPI en `127.0.0.1:8000` y una base PostgreSQL efímera con datos sintéticos. Verificación: portal 200, `/health` ok, login de `demo.admin` 200 y `/api/v1/auth/me` con cookie de sesión. No se expuso PostgreSQL ni el puerto 8000, y no se tocó `erp_minero_dev`. Detalles y credenciales en `docs/ACCESO_INTERNET_DEMO.md`.
+
+---
+
+## 13. Política de contraseñas con mínimo de 6 caracteres
+
+A solicitud del usuario se redujo el mínimo de 12 a 6 caracteres, conservando la exigencia de mayúscula, minúscula, número y carácter especial.
+
+- Backend: `PASSWORD_MIN_LENGTH = 6` en `backend/app/modules/identity/schemas.py`, usado por `validate_password_policy` y por `ChangePasswordIn`; la misma política aplica al alta de usuarios.
+- Frontend: `ChangePassword.tsx` usa el mínimo en los dos campos y en el texto de ayuda.
+- Documentación: `docs/MANUAL_LOGIN_ADMINISTRACION.md` y `docs/ACCESO_INTERNET_DEMO.md`.
+- Pruebas nuevas: `backend/tests/test_password_policy.py` y `frontend/src/features/auth/ChangePassword.test.tsx` cubren 6 caracteres aceptados, 5 rechazados y los cuatro tipos de carácter.
+- Verificación local: suite backend completa en verde (185 pruebas), frontend en verde (66 pruebas), `tsc -b` y `vite build` correctos.
+- Verificación en la demo: `/openapi.json` reporta `minLength=6`, el bundle servido contiene `minLength:6`, y el login de `demo.solicitante` con su contraseña temporal sigue vigente.
+
+**Advertencia:** 6 caracteres reducen la resistencia a ataques de fuerza bruta. La política es aceptable para la demo sintética; debe revisarse antes de declarar producción.

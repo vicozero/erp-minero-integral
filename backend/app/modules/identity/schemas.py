@@ -9,10 +9,13 @@ from pydantic import BaseModel, Field, field_validator
 from app.shared.constants import ROLE_LABELS
 
 
+PASSWORD_MIN_LENGTH = 6
+
+
 def validate_password_policy(value: str) -> str:
     """Política mínima para contraseñas nuevas; no se aplica a la semilla demo."""
-    if len(value) < 12:
-        raise ValueError("La contraseña debe tener al menos 12 caracteres.")
+    if len(value) < PASSWORD_MIN_LENGTH:
+        raise ValueError(f"La contraseña debe tener al menos {PASSWORD_MIN_LENGTH} caracteres.")
     if not re.search(r"[a-z]", value):
         raise ValueError("La contraseña debe incluir una letra minúscula.")
     if not re.search(r"[A-Z]", value):
@@ -59,7 +62,7 @@ class SessionResponse(BaseModel):
 
 class ChangePasswordIn(BaseModel):
     current_password: str = Field(min_length=1, max_length=200)
-    new_password: str = Field(min_length=12, max_length=200)
+    new_password: str = Field(min_length=PASSWORD_MIN_LENGTH, max_length=200)
 
     @field_validator("new_password")
     @classmethod

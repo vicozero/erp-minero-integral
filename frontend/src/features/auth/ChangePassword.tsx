@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import { ErrorMessage, PageHeader, SuccessMessage } from '../../components/ui';
 
+const PASSWORD_MIN_LENGTH = 6;
+
 export function PasswordChangeForm({ onChanged }: { onChanged?: () => void }) {
   const { changePassword, user } = useAuth();
   const navigate = useNavigate();
@@ -65,7 +67,7 @@ export function PasswordChangeForm({ onChanged }: { onChanged?: () => void }) {
           autoComplete="new-password"
           value={next}
           onChange={(event) => setNext(event.target.value)}
-          minLength={12}
+          minLength={PASSWORD_MIN_LENGTH}
           required
         />
         <label htmlFor="confirm-password">Confirmar contraseña nueva</label>
@@ -75,11 +77,12 @@ export function PasswordChangeForm({ onChanged }: { onChanged?: () => void }) {
           autoComplete="new-password"
           value={confirm}
           onChange={(event) => setConfirm(event.target.value)}
-          minLength={12}
+          minLength={PASSWORD_MIN_LENGTH}
           required
         />
         <p className="hint">
-          Mínimo 12 caracteres, con mayúscula, minúscula, número y carácter especial.
+          Mínimo {PASSWORD_MIN_LENGTH} caracteres, con mayúscula, minúscula, número y carácter
+          especial.
         </p>
         <div className="form-actions">
           <button className="button button-primary" type="submit" disabled={loading}>

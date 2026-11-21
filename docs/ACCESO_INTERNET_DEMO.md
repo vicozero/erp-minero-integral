@@ -14,6 +14,7 @@ Es un túnel HTTPS de ngrok hacia el proxy del portal en este PC. La primera vis
 1. Abra la URL pública y acepte la advertencia de ngrok.
 2. En el portal, use una de las cuentas ficticias documentadas en `docs/MANUAL_LOGIN_ADMINISTRACION.md` (por ejemplo `demo.admin`).
 3. La contraseña es la generada para esta demo, **no está versionada**; se entregó fuera del repositorio y quedó sólo en el estado local del túnel.
+4. El sistema pedirá cambiarla. La política permite una contraseña de **mínimo 6 caracteres**, con mayúscula, minúscula, número y carácter especial.
 
 ## Arquitectura de esta demo
 

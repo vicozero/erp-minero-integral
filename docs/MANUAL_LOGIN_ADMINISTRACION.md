@@ -97,7 +97,7 @@ No modificar `DATABASE_URL` para apuntar a CONTPAQi ni a servicios externos: el 
 
 1. En la barra superior, pulse **Cambiar contraseña**.
 2. Escriba la contraseña actual, la nueva y su confirmación.
-3. Política: mínimo 12 caracteres, mayúscula, minúscula, número y carácter especial.
+3. Política: mínimo 6 caracteres, mayúscula, minúscula, número y carácter especial.
 4. Al guardar se revocan las sesiones anteriores y se emite una nueva; el sistema avisa en pantalla.
 5. Si la cuenta tenía contraseña temporal, el aviso desaparece y puede operar normalmente.
 
